@@ -1,0 +1,15 @@
+# Security
+.env
+tokens.json
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
