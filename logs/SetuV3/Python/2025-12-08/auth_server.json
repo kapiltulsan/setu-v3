@@ -1,0 +1,4 @@
+{"timestamp": "2025-12-08T12:00:31.453578+00:00", "level": null, "name": "auth_server", "message": "Auth Server Starting on Port 5000", "funcName": "log", "lineno": 62, "host": "DESKTOP-T7T0EKH", "job_id": null, "protocol": "HTTPS"}
+{"timestamp": "2025-12-08T12:00:32.489086+00:00", "level": null, "name": "auth_server", "message": "Auth Server Starting on Port 5000", "funcName": "log", "lineno": 62, "host": "DESKTOP-T7T0EKH", "job_id": null, "protocol": "HTTPS"}
+{"timestamp": "2025-12-08T12:02:20.407481+00:00", "level": null, "name": "auth_server", "message": "Login Page Accessed", "funcName": "log", "lineno": 62, "host": "DESKTOP-T7T0EKH", "job_id": null, "client_ip": "100.87.76.125"}
+{"timestamp": "2025-12-08T12:02:43.537206+00:00", "level": null, "name": "auth_server", "message": "Authentication Success", "funcName": "log", "lineno": 62, "host": "DESKTOP-T7T0EKH", "job_id": null, "client_ip": "100.87.76.125", "access_token_generated": true}
