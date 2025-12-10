@@ -78,14 +78,12 @@ def get_db_connection() -> connection:
 
 
 
+import config
+
 def load_kite_session() -> KiteConnect:
-
-    """Loads the Kite session from tokens.json and returns an authenticated KiteConnect client."""
-
+    # ...
     try:
-
-        with open("tokens.json", "r") as f:
-
+        with open(config.TOKENS_FILE, "r") as f:
             tokens = json.load(f)
 
         kite = KiteConnect(api_key=API_KEY)

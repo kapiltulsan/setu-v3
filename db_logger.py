@@ -9,8 +9,10 @@ from pytz import timezone
 # Define the IST timezone
 IST = timezone("Asia/Kolkata")
 
+import config
+
 class EnterpriseLogger:
-    def __init__(self, name, log_dir="logs"):
+    def __init__(self, name, log_dir=config.LOG_DIR):
         self.name = name
         self.host = socket.gethostname()
         

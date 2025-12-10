@@ -7,11 +7,12 @@ from flask import Blueprint, request, redirect, url_for
 from kiteconnect import KiteConnect
 from dotenv import load_dotenv
 from db_logger import EnterpriseLogger
+import config
 
 load_dotenv()
 API_KEY = os.getenv("KITE_API_KEY")
 API_SECRET = os.getenv("KITE_API_SECRET")
-TOKEN_FILE = "tokens.json"
+TOKEN_FILE = config.TOKENS_FILE
 
 logger = EnterpriseLogger("mod_auth")
 auth_bp = Blueprint('auth', __name__)

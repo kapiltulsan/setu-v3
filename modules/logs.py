@@ -4,8 +4,10 @@ import glob
 import json
 import datetime
 
+import config
+
 # Adjust path relative to where app.py runs
-LOG_BASE_DIR = os.path.join("logs", "SetuV3", "Python")
+LOG_BASE_DIR = os.path.join(config.LOG_DIR, "SetuV3", "Python")
 
 def get_recent_logs(limit=100):
     """Fetches and merges logs from all scripts for today"""

@@ -72,9 +72,11 @@ UPSERT_SQL_TEMPLATE = """
 
 # --- Functions ---
 
+import config
+
 def load_kite_session() -> KiteConnect:
     try:
-        with open("tokens.json", "r") as f:
+        with open(config.TOKENS_FILE, "r") as f:
             tokens = json.load(f)
         kite = KiteConnect(api_key=API_KEY)
         kite.set_access_token(tokens["access_token"])

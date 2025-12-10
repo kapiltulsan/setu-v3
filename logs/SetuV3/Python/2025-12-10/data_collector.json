@@ -4142,3 +4142,7 @@
 {"timestamp": "2025-12-10T11:57:07.127477+05:30", "level": "info", "name": "data_collector", "message": "Universe Loaded", "host": "DESKTOP-T7T0EKH", "count": 1}
 {"timestamp": "2025-12-10T11:57:09.132351+05:30", "level": "info", "name": "data_collector", "message": "Job Success", "host": "DESKTOP-T7T0EKH", "symbol": "TCS", "count": 4, "mode": "INCREMENTAL (Buffer -5d)"}
 {"timestamp": "2025-12-10T11:57:09.134861+05:30", "level": "info", "name": "data_collector", "message": "Job Complete", "host": "DESKTOP-T7T0EKH", "duration": 2.146636962890625, "completed": 1, "errors": 0}
+{"timestamp": "2025-12-10T16:51:58.511228+05:30", "level": "info", "name": "data_collector", "message": "Starting Data Collector", "host": "DESKTOP-T7T0EKH", "timeframe": "day", "backfill": 1100, "buffer": 5}
+{"timestamp": "2025-12-10T16:51:58.754643+05:30", "level": "info", "name": "data_collector", "message": "Universe Loaded", "host": "DESKTOP-T7T0EKH", "count": 1}
+{"timestamp": "2025-12-10T16:52:00.794837+05:30", "level": "info", "name": "data_collector", "message": "Job Success", "host": "DESKTOP-T7T0EKH", "symbol": "TCS", "count": 4, "mode": "INCREMENTAL (Buffer -5d)"}
+{"timestamp": "2025-12-10T16:52:00.797343+05:30", "level": "info", "name": "data_collector", "message": "Job Complete", "host": "DESKTOP-T7T0EKH", "duration": 2.2861058712005615, "completed": 1, "errors": 0}
