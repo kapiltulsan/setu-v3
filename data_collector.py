@@ -5,7 +5,7 @@ import time
 import datetime
 import argparse
 import concurrent.futures
-import psycopg2
+# import psycopg2
 from psycopg2.pool import ThreadedConnectionPool
 from psycopg2.extras import execute_batch, RealDictCursor
 from kiteconnect import KiteConnect, exceptions as kite_exceptions
@@ -26,6 +26,12 @@ MAX_CONCURRENT = int(os.getenv("OHLC_MAX_CONCURRENT_JOBS", 10))
 BACKFILL_RULES = {
     "60minute": int(os.getenv("OHLC_BACKFILL_DAYS_HOURLY", 365)), 
     "day": int(os.getenv("OHLC_BACKFILL_DAYS_DAILY", 1100))        
+}
+
+# --- NEW: Buffer Configuration (Overlap/Self-Healing) ---
+BUFFER_RULES = {
+    "60minute": int(os.environ["OHLC_BUFFER_DAYS_HOURLY"]), # Overlap last 2 days
+    "day": int(os.environ["OHLC_BUFFER_DAYS_DAILY"])        # Overlap last 5 days
 }
 
 # Zerodha Fetch Limits
@@ -106,17 +112,23 @@ def process_symbol(kite_session, pool, symbol, token, timeframe, table_suffix):
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 max_days = BACKFILL_RULES.get(timeframe, 365)
+                buffer_days = BUFFER_RULES.get(timeframe)
 
                 query_last = GET_LAST_CANDLE_SQL_TEMPLATE.format(suffix=table_suffix)
                 cur.execute(query_last, (symbol,))
                 result = cur.fetchone()
                 last_candle = result['last_candle'] if result and 'last_candle' in result else None
                 
+                # --- FIX: Ensure last_candle is DateTime, not Date ---
+                if last_candle and isinstance(last_candle, datetime.date) and not isinstance(last_candle, datetime.datetime):
+                    last_candle = datetime.datetime.combine(last_candle, datetime.time.min).replace(tzinfo=datetime.timezone.utc)
+
+                
                 to_date = datetime.datetime.now().astimezone()
                 
                 if last_candle:
-                    from_date = last_candle
-                    mode = "INCREMENTAL"
+                    from_date = last_candle - datetime.timedelta(days=buffer_days)
+                    mode = f"INCREMENTAL (Buffer -{buffer_days}d)"
                 else:
                     from_date = to_date - datetime.timedelta(days=max_days)
                     mode = f"BACKFILL"
@@ -160,8 +172,9 @@ def main():
     
     start_time = time.time()
     backfill_days = BACKFILL_RULES.get(args.timeframe, 0)
+    buffer_days = BUFFER_RULES.get(args.timeframe, 0)
     
-    logger.log("info", f"Starting Data Collector", timeframe=args.timeframe, backfill=backfill_days)
+    logger.log("info", f"Starting Data Collector", timeframe=args.timeframe, backfill=backfill_days, buffer=buffer_days)
 
     try:
         # --- REFACTOR: Initialize shared resources once ---
