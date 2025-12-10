@@ -1,0 +1,7 @@
+{"timestamp": "2025-12-10T09:18:51.726789+05:30", "level": "info", "name": "sync_master", "message": "Starting master data sync...", "host": "DESKTOP-T7T0EKH"}
+{"timestamp": "2025-12-10T09:18:51.968551+05:30", "level": "info", "name": "sync_master", "message": "Found active exchanges in DB", "host": "DESKTOP-T7T0EKH", "exchanges": ["NSE"]}
+{"timestamp": "2025-12-10T09:18:51.969823+05:30", "level": "info", "name": "sync_master", "message": "Downloading instruments for: NSE", "host": "DESKTOP-T7T0EKH"}
+{"timestamp": "2025-12-10T09:18:53.549924+05:30", "level": "info", "name": "sync_master", "message": "Fetched 8680 instruments for NSE", "host": "DESKTOP-T7T0EKH"}
+{"timestamp": "2025-12-10T09:18:53.554731+05:30", "level": "info", "name": "sync_master", "message": "Starting database bulk upsert...", "host": "DESKTOP-T7T0EKH"}
+{"timestamp": "2025-12-10T09:18:58.116172+05:30", "level": "info", "name": "sync_master", "message": "Database bulk upsert complete.", "host": "DESKTOP-T7T0EKH"}
+{"timestamp": "2025-12-10T09:18:58.121013+05:30", "level": "info", "name": "sync_master", "message": "Master sync complete", "host": "DESKTOP-T7T0EKH", "total_symbols": 8680}

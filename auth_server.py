@@ -1,6 +1,9 @@
 import os
 import json
+import signal
 import socket
+import threading
+import time
 from flask import Flask, request
 from kiteconnect import KiteConnect
 from dotenv import load_dotenv
@@ -11,8 +14,7 @@ load_dotenv()
 API_KEY = os.getenv("KITE_API_KEY")
 API_SECRET = os.getenv("KITE_API_SECRET")
 
-# 2. Initialize Logger (File Only Mode)
-# We use the same logger class, but we simply won't call 'start_job()' 
+# 2. Initialize Logger
 logger = EnterpriseLogger("auth_server")
 
 if not API_KEY or not API_SECRET:
@@ -22,11 +24,17 @@ if not API_KEY or not API_SECRET:
 app = Flask(__name__)
 kite = KiteConnect(api_key=API_KEY)
 
+# Helper function to kill server safely
+def delayed_shutdown():
+    logger.log("info", "Shutdown Timer Started", wait_time="2 seconds")
+    time.sleep(2)
+    logger.log("info", "Shutting down Auth Server now...")
+    os.kill(os.getpid(), signal.SIGINT)
+
 # 3. Route: Landing Page
 @app.route('/')
 def index():
     client_ip = request.remote_addr
-    # Log to FILE only
     logger.log("info", "Login Page Accessed", client_ip=client_ip)
     
     login_url = kite.login_url()
@@ -51,17 +59,32 @@ def callback():
     try:
         data = kite.generate_session(request_token, api_secret=API_SECRET)
         
-        with open('tokens.json', 'w') as f:
+        # Absolute path ensures we write where we expect
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        token_file_path = os.path.join(script_dir, 'tokens.json')
+        
+        # Write File
+        with open(token_file_path, 'w') as f:
             json.dump(data, f, indent=4, default=str)
+            f.flush() # Force write to disk
+            os.fsync(f.fileno()) # Double force to OS disk
+
+        # Verify
+        if not os.path.exists(token_file_path):
+            raise IOError("File write verification failed.")
             
-        # Log Success to FILE only
-        logger.log("info", "Authentication Success", 
-                   client_ip=client_ip, 
-                   access_token_generated=True)
-            
+        logger.log("info", "Authentication Success", path=token_file_path)
+
+        # --- THE FIX: Run shutdown in a separate thread ---
+        # This allows the 'return' statement below to execute immediately,
+        # showing the Success page to the user BEFORE the server dies.
+        thread = threading.Thread(target=delayed_shutdown)
+        thread.start()
+
         return f'''
             <h2 style="color: green;">✅ Success!</h2>
-            <p>Token saved on Host: <b>{socket.gethostname()}</b></p>
+            <p>Token saved to: {token_file_path}</p>
+            <p>Server will shut down in 2 seconds...</p>
             <pre>{json.dumps(data, indent=4, default=str)}</pre>
         '''
     except Exception as e:
@@ -70,9 +93,8 @@ def callback():
 
 if __name__ == '__main__':
     try:
-        # Just log to file that we are starting
         logger.log("info", f"Auth Server Starting on Port 5000", protocol="HTTPS")
-        app.run(host='0.0.0.0', port=5000, debug=True, ssl_context='adhoc')
+        app.run(host='0.0.0.0', port=5000, debug=False, ssl_context='adhoc')
         
     except KeyboardInterrupt:
         logger.log("info", "Auth Server Stopped Manually")
