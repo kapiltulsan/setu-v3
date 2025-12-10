@@ -1,0 +1,20 @@
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>📜 Live Logs (Last 100)</h2>
+        <a href="/" style="color: var(--blue); font-size: 0.9rem; text-decoration: none;">⟳ Refresh</a>
+    </div>
+    <div class="log-container">
+        {% for log in logs.data %}
+        <div class="log-entry">
+            <span class="log-time">{{ log.timestamp.split('T')[1][:8] }}</span>
+            <span class="log-comp {{ log.level }}">[{{ log.script }}]</span>
+            <span class="log-msg {{ log.level }}">{{ log.event }}</span>
+        </div>
+        {% else %}
+        <div style="color: #555; text-align: center; padding-top: 50px;">
+            No logs found for today.<br>
+            <small>Looking in: {{ logs.path }}</small>
+        </div>
+        {% endfor %}
+    </div>
+</div>

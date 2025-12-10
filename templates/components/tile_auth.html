@@ -1,0 +1,21 @@
+<div class="card">
+    <h2>🔐 Zerodha Gateway</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <span>Session Status</span>
+        <span class="badge {{ 'active' if auth.valid else 'expired' }}">
+            {{ "ONLINE" if auth.valid else "OFFLINE" }}
+        </span>
+    </div>
+    <div style="font-size: 0.9rem; color: #888; margin-bottom: 20px;">
+        Token Last Updated: <span style="color: #ccc;">{{ auth.date }}</span>
+    </div>
+
+    {% if not auth.valid %}
+    <a href="{{ auth.login_url }}" class="btn btn-login">🔄 Login to Zerodha</a>
+    {% else %}
+    <button class="btn btn-disabled">✅ System Active</button>
+    <div style="text-align: center; margin-top: 10px;">
+        <a href="{{ auth.login_url }}" style="color: #555; font-size: 0.8rem;">Force Re-Login</a>
+    </div>
+    {% endif %}
+</div>
