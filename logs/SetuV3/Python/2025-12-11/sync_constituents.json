@@ -1,0 +1,52 @@
+{"timestamp": "2025-12-11T16:21:17.660100+05:30", "level": "info", "name": "sync_constituents", "message": "Starting Index Mapping Sync...", "host": "DESKTOP-T7T0EKH"}
+{"timestamp": "2025-12-11T16:21:17.743202+05:30", "level": "info", "name": "sync_constituents", "message": "Loaded 23 index configurations from DB.", "host": "DESKTOP-T7T0EKH"}
+{"timestamp": "2025-12-11T16:21:17.743643+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY 50...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_nifty50list.csv"}
+{"timestamp": "2025-12-11T16:21:20.286895+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY 50", "host": "DESKTOP-T7T0EKH", "count": 51}
+{"timestamp": "2025-12-11T16:21:20.287959+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY NEXT 50...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftynext50list.csv"}
+{"timestamp": "2025-12-11T16:21:22.473406+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY NEXT 50", "host": "DESKTOP-T7T0EKH", "count": 50}
+{"timestamp": "2025-12-11T16:21:22.474164+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY 100...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_nifty100list.csv"}
+{"timestamp": "2025-12-11T16:21:24.799130+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY 100", "host": "DESKTOP-T7T0EKH", "count": 101}
+{"timestamp": "2025-12-11T16:21:24.800162+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY 200...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_nifty200list.csv"}
+{"timestamp": "2025-12-11T16:21:27.046736+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY 200", "host": "DESKTOP-T7T0EKH", "count": 201}
+{"timestamp": "2025-12-11T16:21:27.047483+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY 500...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_nifty500list.csv"}
+{"timestamp": "2025-12-11T16:21:29.894087+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY 500", "host": "DESKTOP-T7T0EKH", "count": 502}
+{"timestamp": "2025-12-11T16:21:29.894731+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY MIDCAP 150...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftymidcap150list.csv"}
+{"timestamp": "2025-12-11T16:21:32.159232+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY MIDCAP 150", "host": "DESKTOP-T7T0EKH", "count": 150}
+{"timestamp": "2025-12-11T16:21:32.160416+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY SMALLCAP 250...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftysmallcap250list.csv"}
+{"timestamp": "2025-12-11T16:21:34.700307+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY SMALLCAP 250", "host": "DESKTOP-T7T0EKH", "count": 251}
+{"timestamp": "2025-12-11T16:21:34.701239+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY MICROCAP 250...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftymicrocap250_list.csv"}
+{"timestamp": "2025-12-11T16:21:37.271154+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY MICROCAP 250", "host": "DESKTOP-T7T0EKH", "count": 251}
+{"timestamp": "2025-12-11T16:21:37.272910+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY TOTAL MARKET...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftytotalmarket_list.csv"}
+{"timestamp": "2025-12-11T16:21:38.459171+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY TOTAL MARKET", "host": "DESKTOP-T7T0EKH", "count": 753}
+{"timestamp": "2025-12-11T16:21:38.460525+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY BANK...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftybanklist.csv"}
+{"timestamp": "2025-12-11T16:21:39.398419+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY BANK", "host": "DESKTOP-T7T0EKH", "count": 12}
+{"timestamp": "2025-12-11T16:21:39.399628+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY AUTO...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftyautolist.csv"}
+{"timestamp": "2025-12-11T16:21:40.241291+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY AUTO", "host": "DESKTOP-T7T0EKH", "count": 15}
+{"timestamp": "2025-12-11T16:21:40.242958+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY FIN SERVICE...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftyfinancelist.csv"}
+{"timestamp": "2025-12-11T16:21:41.166241+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY FIN SERVICE", "host": "DESKTOP-T7T0EKH", "count": 20}
+{"timestamp": "2025-12-11T16:21:41.167354+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY FMCG...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftyfmcglist.csv"}
+{"timestamp": "2025-12-11T16:21:42.160741+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY FMCG", "host": "DESKTOP-T7T0EKH", "count": 16}
+{"timestamp": "2025-12-11T16:21:42.162221+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY IT...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftyitlist.csv"}
+{"timestamp": "2025-12-11T16:21:43.028179+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY IT", "host": "DESKTOP-T7T0EKH", "count": 10}
+{"timestamp": "2025-12-11T16:21:43.028652+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY MEDIA...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftymedialist.csv"}
+{"timestamp": "2025-12-11T16:21:44.139970+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY MEDIA", "host": "DESKTOP-T7T0EKH", "count": 10}
+{"timestamp": "2025-12-11T16:21:44.141047+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY METAL...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftymetallist.csv"}
+{"timestamp": "2025-12-11T16:21:45.081121+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY METAL", "host": "DESKTOP-T7T0EKH", "count": 15}
+{"timestamp": "2025-12-11T16:21:45.082531+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY PHARMA...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftypharmalist.csv"}
+{"timestamp": "2025-12-11T16:21:46.058502+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY PHARMA", "host": "DESKTOP-T7T0EKH", "count": 20}
+{"timestamp": "2025-12-11T16:21:46.059810+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY PSU BANK...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftypsubanklist.csv"}
+{"timestamp": "2025-12-11T16:21:46.924133+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY PSU BANK", "host": "DESKTOP-T7T0EKH", "count": 12}
+{"timestamp": "2025-12-11T16:21:46.924782+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY PVT BANK...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_nifty_privatebanklist.csv"}
+{"timestamp": "2025-12-11T16:21:47.791973+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY PVT BANK", "host": "DESKTOP-T7T0EKH", "count": 10}
+{"timestamp": "2025-12-11T16:21:47.792667+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY REALTY...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftyrealtylist.csv"}
+{"timestamp": "2025-12-11T16:21:48.429808+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY REALTY", "host": "DESKTOP-T7T0EKH", "count": 10}
+{"timestamp": "2025-12-11T16:21:48.430524+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY HEALTHCARE...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftyhealthcarelist.csv"}
+{"timestamp": "2025-12-11T16:21:49.330180+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY HEALTHCARE", "host": "DESKTOP-T7T0EKH", "count": 20}
+{"timestamp": "2025-12-11T16:21:49.331859+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY CONSR DURBL...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftyconsumerdurableslist.csv"}
+{"timestamp": "2025-12-11T16:21:50.261400+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY CONSR DURBL", "host": "DESKTOP-T7T0EKH", "count": 15}
+{"timestamp": "2025-12-11T16:21:50.263700+05:30", "level": "info", "name": "sync_constituents", "message": "Fetching NIFTY OIL & GAS...", "host": "DESKTOP-T7T0EKH", "url": "https://niftyindices.com/IndexConstituent/ind_niftyoilgaslist.csv"}
+{"timestamp": "2025-12-11T16:21:51.208610+05:30", "level": "info", "name": "sync_constituents", "message": "Parsed NIFTY OIL & GAS", "host": "DESKTOP-T7T0EKH", "count": 15}
+{"timestamp": "2025-12-11T16:21:51.212208+05:30", "level": "info", "name": "sync_constituents", "message": "Starting DB transaction...", "host": "DESKTOP-T7T0EKH"}
+{"timestamp": "2025-12-11T16:21:51.221782+05:30", "level": "info", "name": "sync_constituents", "message": "Deleted old data.", "host": "DESKTOP-T7T0EKH"}
+{"timestamp": "2025-12-11T16:21:51.223226+05:30", "level": "info", "name": "sync_constituents", "message": "Inserting 2510 mappings...", "host": "DESKTOP-T7T0EKH"}
+{"timestamp": "2025-12-11T16:21:51.373999+05:30", "level": "info", "name": "sync_constituents", "message": "Sync Complete", "host": "DESKTOP-T7T0EKH", "total_mappings": 2510, "rows_written": 1}
