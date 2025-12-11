@@ -1,0 +1,20 @@
+{"timestamp": "2025-12-11T19:29:23.715777+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "RELIANCE", "rows": 749}
+{"timestamp": "2025-12-11T19:31:39.528421+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "INFY", "rows": 749}
+{"timestamp": "2025-12-11T19:32:08.220133+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "RELIANCE", "rows": 749}
+{"timestamp": "2025-12-11T19:34:31.309326+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "RELIGARE", "rows": 749}
+{"timestamp": "2025-12-11T19:34:42.120375+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "RELIANCE", "rows": 749}
+{"timestamp": "2025-12-11T19:35:49.984314+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "RELIANCE", "rows": 749}
+{"timestamp": "2025-12-11T19:36:25.837283+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "RELIANCE", "rows": 749}
+{"timestamp": "2025-12-11T19:39:21.693417+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "RELIANCE", "rows": 749}
+{"timestamp": "2025-12-11T19:41:40.783330+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "RELIANCE", "rows": 749}
+{"timestamp": "2025-12-11T19:43:50.109889+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "RELIANCE", "rows": 749}
+{"timestamp": "2025-12-11T19:44:11.789188+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "RELIANCE", "rows": 1738}
+{"timestamp": "2025-12-11T20:01:54.630502+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "RELIANCE", "rows": 749, "timeframe": "1D"}
+{"timestamp": "2025-12-11T20:03:19.888802+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "TCS", "rows": 158, "timeframe": "1W"}
+{"timestamp": "2025-12-11T20:03:31.259821+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "TCS", "rows": 749, "timeframe": "1D"}
+{"timestamp": "2025-12-11T20:05:46.535774+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "BANARBEADS", "rows": 0, "timeframe": "1D"}
+{"timestamp": "2025-12-11T20:08:16.059844+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "TCS", "rows": 749, "timeframe": "1D"}
+{"timestamp": "2025-12-11T20:08:56.697525+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "TCS", "rows": 158, "timeframe": "1W"}
+{"timestamp": "2025-12-11T20:09:19.610045+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "NIFTY 50", "rows": 158, "timeframe": "1W"}
+{"timestamp": "2025-12-11T20:09:20.643794+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "NIFTY 50", "rows": 158, "timeframe": "1W"}
+{"timestamp": "2025-12-11T20:11:18.238115+05:30", "level": "info", "name": "mod_charts", "message": "History Query", "host": "DESKTOP-T7T0EKH", "symbol": "NIFTY 50", "rows": 749, "timeframe": "1D"}
