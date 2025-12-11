@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setu V3 - Charts</title>
+    <script src="{{ url_for('static', filename='js/klinecharts.js') }}"></script>
+    <style>
+        :root {
+            --bg: #121212;
+            --card: #1e1e1e;
+            --text: #e0e0e0;
+            --muted: #888;
+            --border: #333;
+            --green: #26a69a;
+            --red: #ef5350;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toolbar {
+            padding: 10px 20px;
+            background-color: var(--card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        select,
+        input {
+            background-color: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        button {
+            padding: 6px 12px;
+            background-color: #333;
+            color: white;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        button:hover {
+            background-color: #444;
+        }
+
+        button.active {
+            background-color: #2962ff;
+            border-color: #2962ff;
+        }
+
+        button.primary {
+            background-color: #2962ff;
+            border: none;
+            font-weight: 600;
+        }
+
+        #chart-container {
+            flex-grow: 1;
+            width: 100%;
+            position: relative;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="toolbar">
+        <input type="text" id="symbolSearch" list="symbolList" placeholder="Search (e.g. RELIANCE)"
+            style="width: 150px; text-transform: uppercase;">
+        <datalist id="symbolList"></datalist>
+
+        <select id="timeframe">
+            <option value="60M">Hourly (60H)</option>
+            <option value="1D" selected>Daily (1D)</option>
+            <option value="1W">Weekly (1W)</option>
+            <option value="1M">Monthly (1M)</option>
+            <option value="1Y">Yearly (1Y)</option>
+        </select>
+
+        <button class="primary" onclick="loadChart()">Load</button>
+
+        <div style="width: 1px; height: 20px; background: #333; margin: 0 5px;"></div>
+
+        <!-- Drawing Tools -->
+        <button onclick="setOverlay('priceLine')">Price Line</button>
+        <button onclick="setOverlay('simpleAnnotation')">Text</button>
+        <button onclick="setOverlay('rayLine')">Ray</button>
+        <button onclick="setOverlay('segment')">Segment</button>
+        <button onclick="setOverlay('straightLine')">Line</button>
+        <button onclick="setOverlay('fibonacciRetracement')">Fib Retracement</button>
+
+        <div style="width: 1px; height: 20px; background: #333; margin: 0 5px;"></div>
+
+
+        <button onclick="clearOverlays()" style="color: #ef5350;">Clear All</button>
+    </div>
+
+    <div id="chart-container"></div>
+
+    <script>
+        let chart = null;
+
+        function initChart() {
+            chart = klinecharts.init('chart-container');
+            chart.setStyles({
+                grid: {
+                    show: true,
+                    horizontal: { color: '#2B2B43' },
+                    vertical: { color: '#2B2B43' }
+                },
+                candle: {
+                    bar: {
+                        upColor: '#26a69a',
+                        downColor: '#ef5350',
+                        noChangeColor: '#888888'
+                    }
+                }
+            });
+            // Add default indicators
+            chart.createIndicator('VOL');
+        }
+
+        function setOverlay(name) {
+            chart.createOverlay(name);
+        }
+
+        function clearOverlays() {
+            chart.removeOverlay();
+        }
+
+        async function loadSymbols() {
+            try {
+                const res = await fetch('/api/symbols');
+                const symbols = await res.json();
+                const dataList = document.getElementById('symbolList');
+                dataList.innerHTML = '';
+                symbols.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    dataList.appendChild(opt);
+                });
+            } catch (e) {
+                console.error("Failed to load symbols", e);
+            }
+        }
+
+        async function loadChart() {
+            const symbol = document.getElementById('symbolSearch').value.toUpperCase();
+            const timeframe = document.getElementById('timeframe').value;
+
+            if (!symbol) return;
+
+            try {
+                const res = await fetch(`/api/history?symbol=${symbol}&timeframe=${timeframe}`);
+                if (!res.ok) throw new Error(res.statusText);
+                const apiData = await res.json();
+
+                if (apiData.error) {
+                    alert(apiData.error);
+                    return;
+                }
+
+                if (apiData.length === 0) {
+                    alert("No data found");
+                    return;
+                }
+
+                // Map API data to KlineCharts format
+                // API: { time: 'YYYY-MM-DD' | int, open, high, low, close, value (volume) }
+                // Kline: { timestamp, open, high, low, close, volume }
+
+                const klineData = apiData.map(d => {
+                    let ts;
+                    if (typeof d.time === 'number') {
+                        // Hourly: unix seconds -> ms
+                        ts = d.time * 1000;
+                    } else {
+                        // Daily string "2023-10-27"
+                        ts = new Date(d.time).getTime();
+                    }
+
+                    return {
+                        timestamp: ts,
+                        open: d.open,
+                        high: d.high,
+                        low: d.low,
+                        close: d.close,
+                        volume: d.value
+                    };
+                });
+
+                chart.applyNewData(klineData);
+
+            } catch (e) {
+                alert("Load failed: " + e.message);
+            }
+        }
+
+        // Search input handler
+        document.getElementById('symbolSearch').addEventListener('input', async (e) => {
+            const val = e.target.value;
+            if (val.length < 2) return;
+            try {
+                const res = await fetch(`/api/symbols?q=${val}`);
+                const symbols = await res.json();
+                const dataList = document.getElementById('symbolList');
+                dataList.innerHTML = '';
+                symbols.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    dataList.appendChild(opt);
+                });
+            } catch (e) { }
+        });
+
+        initChart();
+        loadSymbols();
+    </script>
+</body>
+
+</html>

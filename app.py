@@ -1,5 +1,6 @@
 # app.py
 import socket
+# Trigger reload
 from flask import Flask, render_template
 from modules.auth import auth_bp, get_token_status, get_kite_url
 from modules.logs import get_recent_logs
@@ -72,6 +73,9 @@ app = Flask(__name__)
 
 # Register Blueprints (Routes from modules)
 app.register_blueprint(auth_bp)
+
+from modules.charts import charts_bp
+app.register_blueprint(charts_bp)
 
 @app.route('/api/system_stats')
 def api_system_stats():
