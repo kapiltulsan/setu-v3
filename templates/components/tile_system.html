@@ -1,0 +1,65 @@
+<div class="card">
+    <h2>⚡ System Health (Pi5)</h2>
+
+    <div style="display: flex; flex-direction: column; gap: 15px;">
+
+        <!-- CPU -->
+        <div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>CPU Usage</span>
+                <span
+                    style="font-weight: bold; color: {% if sys_health.cpu > 80 %} var(--red) {% else %} var(--green) {% endif %}">
+                    {{ sys_health.cpu }}%
+                </span>
+            </div>
+            <div style="background: #333; height: 8px; border-radius: 4px; overflow: hidden;">
+                <div style="background: {% if sys_health.cpu > 80 %} var(--red) {% else %} var(--green) {% endif %}; 
+                            width: {{ sys_health.cpu }}%; height: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- RAM -->
+        <div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>RAM Usage</span>
+                <span
+                    style="font-weight: bold; color: {% if sys_health.ram_percent > 80 %} var(--orange) {% else %} var(--blue) {% endif %}">
+                    {{ sys_health.ram_percent }}%
+                </span>
+            </div>
+            <div style="background: #333; height: 8px; border-radius: 4px; overflow: hidden;">
+                <div style="background: {% if sys_health.ram_percent > 80 %} var(--orange) {% else %} var(--blue) {% endif %}; 
+                            width: {{ sys_health.ram_percent }}%; height: 100%;"></div>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--muted); margin-top: 3px;">
+                {{ sys_health.ram_used }} GB / {{ sys_health.ram_total }} GB
+            </div>
+        </div>
+
+        <!-- DISK -->
+        <div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>Disk Space</span>
+                <span>{{ sys_health.disk_percent }}% Used</span>
+            </div>
+            <div style="background: #333; height: 8px; border-radius: 4px; overflow: hidden;">
+                <div style="background: var(--muted); width: {{ sys_health.disk_percent }}%; height: 100%;"></div>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--muted); margin-top: 3px;">
+                {{ sys_health.disk_free }} GB Free
+            </div>
+        </div>
+
+        <!-- Temperature -->
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 10px;">
+            <span>CPU Temp</span>
+            <span
+                style="font-family: monospace; font-size: 1.1rem; 
+                         color: {% if sys_health.temp > 75 %} var(--red) {% elif sys_health.temp > 60 %} var(--orange) {% else %} var(--text) {% endif %}">
+                {{ sys_health.temp }}°C
+            </span>
+        </div>
+
+    </div>
+</div>
