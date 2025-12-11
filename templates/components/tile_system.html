@@ -1,5 +1,16 @@
 <div class="card">
-    <h2>⚡ System Health (Pi5)</h2>
+    <div
+        style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">
+        <h2 style="margin: 0; border: none; padding: 0;">⚡ System Health</h2>
+        <select id="refreshRate"
+            style="background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 4px; border-radius: 4px; font-size: 0.8rem;">
+            <option value="5000">5s</option>
+            <option value="10000">10s</option>
+            <option value="15000">15s</option>
+            <option value="30000">30s</option>
+            <option value="60000">60s</option>
+        </select>
+    </div>
 
     <div style="display: flex; flex-direction: column; gap: 15px;">
 
@@ -7,13 +18,13 @@
         <div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <span>CPU Usage</span>
-                <span
+                <span id="sys_cpu_val"
                     style="font-weight: bold; color: {% if sys_health.cpu > 80 %} var(--red) {% else %} var(--green) {% endif %}">
                     {{ sys_health.cpu }}%
                 </span>
             </div>
             <div style="background: #333; height: 8px; border-radius: 4px; overflow: hidden;">
-                <div style="background: {% if sys_health.cpu > 80 %} var(--red) {% else %} var(--green) {% endif %}; 
+                <div id="sys_cpu_bar" style="background: {% if sys_health.cpu > 80 %} var(--red) {% else %} var(--green) {% endif %}; 
                             width: {{ sys_health.cpu }}%; height: 100%;"></div>
             </div>
         </div>
@@ -22,16 +33,16 @@
         <div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <span>RAM Usage</span>
-                <span
+                <span id="sys_ram_val"
                     style="font-weight: bold; color: {% if sys_health.ram_percent > 80 %} var(--orange) {% else %} var(--blue) {% endif %}">
                     {{ sys_health.ram_percent }}%
                 </span>
             </div>
             <div style="background: #333; height: 8px; border-radius: 4px; overflow: hidden;">
-                <div style="background: {% if sys_health.ram_percent > 80 %} var(--orange) {% else %} var(--blue) {% endif %}; 
+                <div id="sys_ram_bar" style="background: {% if sys_health.ram_percent > 80 %} var(--orange) {% else %} var(--blue) {% endif %}; 
                             width: {{ sys_health.ram_percent }}%; height: 100%;"></div>
             </div>
-            <div style="font-size: 0.8rem; color: var(--muted); margin-top: 3px;">
+            <div id="sys_ram_detail" style="font-size: 0.8rem; color: var(--muted); margin-top: 3px;">
                 {{ sys_health.ram_used }} GB / {{ sys_health.ram_total }} GB
             </div>
         </div>
@@ -40,13 +51,28 @@
         <div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <span>Disk Space</span>
-                <span>{{ sys_health.disk_percent }}% Used</span>
+                <span id="sys_disk_val">{{ sys_health.disk_percent }}% Used</span>
             </div>
             <div style="background: #333; height: 8px; border-radius: 4px; overflow: hidden;">
-                <div style="background: var(--muted); width: {{ sys_health.disk_percent }}%; height: 100%;"></div>
+                <div id="sys_disk_bar"
+                    style="background: var(--muted); width: {{ sys_health.disk_percent }}%; height: 100%;"></div>
             </div>
-            <div style="font-size: 0.8rem; color: var(--muted); margin-top: 3px;">
+            <div id="sys_disk_detail" style="font-size: 0.8rem; color: var(--muted); margin-top: 3px;">
                 {{ sys_health.disk_free }} GB Free
+            </div>
+        </div>
+
+        <!-- Database Metrics -->
+        <div style="border-top: 1px solid var(--border); padding-top: 10px; margin-top: 5px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span>🗄️ Database Size</span>
+                <span id="sys_db_size" style="font-family: monospace; color: var(--green);">{{ sys_health.db_size
+                    }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>🔌 Active Conn.</span>
+                <span id="sys_db_conns" style="font-family: monospace; font-weight: bold;">{{ sys_health.db_conns
+                    }}</span>
             </div>
         </div>
 
@@ -54,7 +80,7 @@
         <div
             style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 10px;">
             <span>CPU Temp</span>
-            <span
+            <span id="sys_temp_val"
                 style="font-family: monospace; font-size: 1.1rem; 
                          color: {% if sys_health.temp > 75 %} var(--red) {% elif sys_health.temp > 60 %} var(--orange) {% else %} var(--text) {% endif %}">
                 {{ sys_health.temp }}°C
@@ -63,3 +89,70 @@
 
     </div>
 </div>
+
+<script>
+    (function () {
+        let statsInterval = null;
+        const refreshSelect = document.getElementById('refreshRate');
+
+        function updateStats() {
+            fetch('/api/system_stats')
+                .then(response => response.json())
+                .then(data => {
+                    // CPU
+                    const cpuColor = data.cpu > 80 ? 'var(--red)' : 'var(--green)';
+                    const cpuEl = document.getElementById('sys_cpu_val');
+                    const cpuBar = document.getElementById('sys_cpu_bar');
+                    if (cpuEl) { cpuEl.innerText = data.cpu + '%'; cpuEl.style.color = cpuColor; }
+                    if (cpuBar) { cpuBar.style.width = data.cpu + '%'; cpuBar.style.background = cpuColor; }
+
+                    // RAM
+                    const ramColor = data.ram_percent > 80 ? 'var(--orange)' : 'var(--blue)';
+                    const ramEl = document.getElementById('sys_ram_val');
+                    const ramBar = document.getElementById('sys_ram_bar');
+                    const ramDetail = document.getElementById('sys_ram_detail');
+                    if (ramEl) { ramEl.innerText = data.ram_percent + '%'; ramEl.style.color = ramColor; }
+                    if (ramBar) { ramBar.style.width = data.ram_percent + '%'; ramBar.style.background = ramColor; }
+                    if (ramDetail) ramDetail.innerText = data.ram_used + ' GB / ' + data.ram_total + ' GB';
+
+                    // Disk
+                    const diskEl = document.getElementById('sys_disk_val');
+                    const diskBar = document.getElementById('sys_disk_bar');
+                    const diskDetail = document.getElementById('sys_disk_detail');
+                    if (diskEl) diskEl.innerText = data.disk_percent + '% Used';
+                    if (diskBar) diskBar.style.width = data.disk_percent + '%';
+                    if (diskDetail) diskDetail.innerText = data.disk_free + ' GB Free';
+
+                    // DB
+                    const dbSize = document.getElementById('sys_db_size');
+                    const dbConns = document.getElementById('sys_db_conns');
+                    if (dbSize) dbSize.innerText = data.db_size;
+                    if (dbConns) dbConns.innerText = data.db_conns;
+
+                    // Temp
+                    const tempEl = document.getElementById('sys_temp_val');
+                    if (tempEl) {
+                        tempEl.innerText = data.temp + '°C';
+                        if (data.temp > 75) tempEl.style.color = 'var(--red)';
+                        else if (data.temp > 60) tempEl.style.color = 'var(--orange)';
+                        else tempEl.style.color = 'var(--text)';
+                    }
+                })
+                .catch(err => console.error('Failed to fetch stats:', err));
+        }
+
+        function setRefreshRate(ms) {
+            if (statsInterval) clearInterval(statsInterval);
+            updateStats(); // Instant update on change
+            statsInterval = setInterval(updateStats, ms);
+        }
+
+        // Initialize listener
+        refreshSelect.addEventListener('change', (e) => {
+            setRefreshRate(parseInt(e.target.value));
+        });
+
+        // Start with default (5s)
+        setRefreshRate(5000);
+    })();
+</script>
