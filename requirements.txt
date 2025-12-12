@@ -4,3 +4,4 @@ python-dotenv
 psutil
 psycopg2-binary
 pytz
+pyopenssl
