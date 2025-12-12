@@ -5,6 +5,19 @@ import json
 import datetime
 
 import config
+from flask import Blueprint, render_template, jsonify
+
+logs_bp = Blueprint('logs', __name__)
+
+@logs_bp.route('/logs')
+def view_logs():
+    logs, _ = get_recent_logs()
+    # If no template exists yet, return JSON or a simple string to prevent crash
+    # return jsonify(logs) 
+    # Use a basic template string or verify if we need to create a file. 
+    # For now, let's return JSON to be safe and functional.
+    return jsonify(logs)
+
 
 # Adjust path relative to where app.py runs
 LOG_BASE_DIR = os.path.join(config.LOG_DIR, "SetuV3", "Python")
