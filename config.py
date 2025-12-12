@@ -1,12 +1,7 @@
 import os
-from dotenv import load_dotenv
 
-# Load environment variables once
-load_dotenv()
+# Path to the tokens file (used by auth and data collector)
+TOKENS_FILE = "tokens.json"
 
-# Base Directory (Project Root)
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
-# File Paths
-TOKENS_FILE = os.path.join(BASE_DIR, "tokens.json")
-LOG_DIR = os.path.join(BASE_DIR, "logs")
+# Directory for logs
+LOG_DIR = "logs"

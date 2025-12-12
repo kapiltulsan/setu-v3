@@ -216,22 +216,36 @@
             </div>
         </div>
 
-        <div class="grid">
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
 
-            <div class="grid-item">
-                {% include 'components/tile_system.html' %}
+            <!-- Left Col: Administration -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <h3 style="margin: 0 0 10px 0; color: var(--blue);">🛠 Administration</h3>
+
+                <div style="height: auto;">
+                    {% include 'components/tile_system.html' %}
+                </div>
+
+                <div style="height: auto;">
+                    {% include 'components/tile_auth.html' %}
+                </div>
+
+                <div style="height: auto;">
+                    {% include 'components/tile_jobs.html' %}
+                </div>
             </div>
 
-            <div class="grid-item">
-                {% include 'components/tile_auth.html' %}
-            </div>
+            <!-- Right Col: Market Data & Logs -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <h3 style="margin: 0 0 10px 0; color: var(--green);">📈 Market Data</h3>
 
-            <div class="grid-item" style="grid-column: 1 / -1;">
-                {% include 'components/tile_logs.html' %}
-            </div>
+                <div style="height: auto;">
+                    {% include 'components/tile_charts.html' %}
+                </div>
 
-            <div class="grid-item">
-                {% include 'components/tile_charts.html' %}
+                <div style="height: 400px; flex-grow: 1;">
+                    {% include 'components/tile_logs.html' %}
+                </div>
             </div>
 
         </div>
