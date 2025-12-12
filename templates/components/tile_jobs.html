@@ -1,0 +1,64 @@
+<div class="card">
+    <h2>🌙 Midnight Jobs</h2>
+    <div id="jobs-container" style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="text-align: center; color: #666;">Loading job status...</div>
+    </div>
+    
+    <div style="margin-top: 15px; text-align: right;">
+        <small style="color: #666;" id="jobs-last-updated">Updated: --</small>
+    </div>
+</div>
+
+<script>
+    async function loadJobs() {
+        try {
+            const response = await fetch('/api/jobs/latest');
+            const jobs = await response.json();
+            const container = document.getElementById('jobs-container');
+            
+            if (jobs.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #888;">No job history found.</div>';
+                return;
+            }
+
+            container.innerHTML = ''; // Clear loading
+
+            jobs.forEach(job => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.justifyContent = 'space-between';
+                row.style.alignItems = 'center';
+                row.style.borderBottom = '1px solid #333';
+                row.style.paddingBottom = '5px';
+
+                let badgeClass = 'badge';
+                if (job.status === 'SUCCESS') badgeClass += ' active';
+                else if (job.status === 'FAILURE') badgeClass += ' expired';
+                else if (job.status === 'WARNING') badgeClass += ' warning';
+                else badgeClass += ' warning'; // RUNNING or others
+
+                row.innerHTML = `
+                    <div>
+                        <div style="font-weight: 500;">${job.name}</div>
+                        <div style="font-size: 0.8rem; color: #888;">${job.start || '-'}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="${badgeClass}">${job.status}</span>
+                        <div style="font-size: 0.8rem; color: #888; margin-top: 2px;">${job.duration}</div>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+            
+            document.getElementById('jobs-last-updated').innerText = 'Updated: ' + new Date().toLocaleTimeString();
+
+        } catch (error) {
+            console.error('Failed to load jobs:', error);
+            document.getElementById('jobs-container').innerHTML = '<div style="color: #ef5350;">Failed to load status</div>';
+        }
+    }
+
+    // Load immediately and then refresh every 30s
+    loadJobs();
+    setInterval(loadJobs, 30000);
+</script>

@@ -4,6 +4,9 @@ import psycopg2
 # Add parent directory to path to allow importing from modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from modules.charts import get_db_connection
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def run_migration(sql_file):
     if not os.path.exists(sql_file):

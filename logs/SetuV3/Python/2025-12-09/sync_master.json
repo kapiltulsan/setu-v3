@@ -1,7 +1,0 @@
-{"timestamp": "2025-12-09T03:59:18.994982+00:00", "level": null, "name": "sync_master", "message": "Starting master data sync...", "funcName": "log", "lineno": 55, "host": "DESKTOP-T7T0EKH"}
-{"timestamp": "2025-12-09T03:59:19.136485+00:00", "level": null, "name": "sync_master", "message": "Found active exchanges in DB", "funcName": "log", "lineno": 55, "host": "DESKTOP-T7T0EKH", "exchanges": ["NSE"]}
-{"timestamp": "2025-12-09T03:59:19.137197+00:00", "level": null, "name": "sync_master", "message": "Downloading instruments for: NSE", "funcName": "log", "lineno": 55, "host": "DESKTOP-T7T0EKH"}
-{"timestamp": "2025-12-09T03:59:19.678373+00:00", "level": null, "name": "sync_master", "message": "Fetched 8675 instruments for NSE", "funcName": "log", "lineno": 55, "host": "DESKTOP-T7T0EKH"}
-{"timestamp": "2025-12-09T03:59:19.679061+00:00", "level": null, "name": "sync_master", "message": "Starting database bulk upsert...", "funcName": "log", "lineno": 55, "host": "DESKTOP-T7T0EKH"}
-{"timestamp": "2025-12-09T03:59:22.548718+00:00", "level": null, "name": "sync_master", "message": "Database bulk upsert complete.", "funcName": "log", "lineno": 55, "host": "DESKTOP-T7T0EKH"}
-{"timestamp": "2025-12-09T03:59:22.552556+00:00", "level": null, "name": "sync_master", "message": "Master sync complete", "funcName": "log", "lineno": 55, "host": "DESKTOP-T7T0EKH", "total_symbols": 8675}

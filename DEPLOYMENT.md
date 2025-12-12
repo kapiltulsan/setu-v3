@@ -82,5 +82,26 @@ sudo systemctl restart setu-admin
 ### Checking Logs
 To see the application output:
 ```bash
-journalctl -u setu-admin -f
+sudo journalctl -u setu-admin -f
 ```
+
+## 4. Setting up Midnight Jobs (Data Collection)
+Automate data collection (Symbols, Indices, OHLC) to run daily at 00:30.
+
+1. Copy systemd files:
+   ```bash
+   sudo cp systemd/setu-midnight-jobs.service /etc/systemd/system/
+   sudo cp systemd/setu-midnight-jobs.timer /etc/systemd/system/
+   ```
+
+2. Enable and start the timer:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable setu-midnight-jobs.timer
+   sudo systemctl start setu-midnight-jobs.timer
+   ```
+
+3. Check timer status:
+   ```bash
+   systemctl list-timers --all | grep setu
+   ```
