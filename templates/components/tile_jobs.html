@@ -1,5 +1,11 @@
 <div class="card">
-    <h2>🌙 Midnight Jobs</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 12px; margin-bottom: 15px;">
+        <h2 style="border: none; margin: 0; padding: 0; margin-bottom: 0;">🌙 Midnight Jobs</h2>
+        <button id="btn-run-batch" onclick="triggerMidnightBatch()" style="padding: 4px 12px; background: #1e1e1e; color: #03dac6; border: 1px solid #03dac6; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: all 0.2s;">
+            ▶ Run Now
+        </button>
+    </div>
+    
     <div id="jobs-container" style="display: flex; flex-direction: column; gap: 10px;">
         <div style="text-align: center; color: #666;">Loading job status...</div>
     </div>
@@ -55,6 +61,32 @@
         } catch (error) {
             console.error('Failed to load jobs:', error);
             document.getElementById('jobs-container').innerHTML = '<div style="color: #ef5350;">Failed to load status</div>';
+        }
+    }
+
+    async function triggerMidnightBatch() {
+        if(!confirm("Are you sure you want to manually trigger the Midnight Jobs Batch?")) return;
+
+        const btn = document.getElementById('btn-run-batch');
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = "Starting...";
+
+        try {
+            const response = await fetch('/api/jobs/trigger/midnight', { method: 'POST' });
+            const result = await response.json();
+            
+            if (response.ok) {
+                alert("Batch Started: " + result.message);
+                loadJobs(); // Refresh immediately
+            } else {
+                alert("Error: " + result.message);
+            }
+        } catch (error) {
+            alert("Request Failed: " + error);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = originalText;
         }
     }
 

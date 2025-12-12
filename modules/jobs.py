@@ -1,7 +1,9 @@
 import os
 import datetime
 import psycopg2
-from flask import Blueprint, jsonify
+import sys
+import subprocess
+from flask import Blueprint, jsonify, request
 from psycopg2.extras import RealDictCursor
 from db_logger import EnterpriseLogger
 
@@ -58,3 +60,20 @@ def get_latest_jobs():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
+@jobs_bp.route('/api/jobs/trigger/midnight', methods=['POST'])
+def trigger_midnight():
+    """Manually trigger the midnight jobs batch."""
+    try:
+        script_path = os.path.join(os.getcwd(), 'tools', 'run_midnight_jobs.py')
+        if not os.path.exists(script_path):
+            return jsonify({"status": "error", "message": "Script not found"}), 404
+
+        # Run non-blocking
+        subprocess.Popen([sys.executable, script_path], cwd=os.getcwd())
+        
+        logger.log("info", "Manually triggered midnight jobs")
+        return jsonify({"status": "success", "message": "Midnight jobs triggered successfully"}), 200
+    except Exception as e:
+        logger.log("error", "Failed to trigger midnight jobs", error=str(e))
+        return jsonify({"status": "error", "message": str(e)}), 500
