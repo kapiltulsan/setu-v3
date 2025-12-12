@@ -33,6 +33,11 @@ The dashboard is the central command center. It is divided into 4 main tiles:
   - `WARNING`: Job finished but with non-critical issues.
 - **Refresh**: The tile updates automatically every 30 seconds.
 
+### 4. ⏰ Auto-Schedule Status
+- **On Linux/Pi**: Managed via `systemd` (runs daily at 00:30).
+- **On Windows**: Managed via `Task Scheduler` (runs daily at 00:30).
+- Check `tools/` folder for setup scripts.
+
 ### 4. 📜 Live Logs
 - Displays the last 100 log entries from the application.
 - **Color Coding**:
@@ -52,7 +57,14 @@ The dashboard is the central command center. It is divided into 4 main tiles:
 4. Verify **System Health** is green.
 
 ### 🏃‍♂️ Running Midnight Jobs Manually
-If a job failed or you need to re-run data collection:
+If a job failed or you need to re-run data collection, you have two options:
+
+**Option A: Via Dashboard (Recommended)**
+1. Go to the **Midnight Jobs** tile.
+2. Click the **"▶ Run Now"** button.
+3. Confirm the action.
+
+**Option B: Via Terminal**
 1. SSH into the server (or open terminal locally).
 2. Run the job script:
    ```bash
