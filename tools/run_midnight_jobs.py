@@ -61,7 +61,7 @@ def log_job_end(job_id, status, details=None):
 def run_step(script_name, args=[]):
     """Runs a script as a subprocess and logs output."""
     full_job_name = f"{script_name} {' '.join(args)}".strip()
-    print(f"🔄 Starting: {full_job_name}")
+    print(f"Starting: {full_job_name}")
     
     job_id = log_job_start(full_job_name)
     start_ts = time.time()
@@ -81,27 +81,29 @@ def run_step(script_name, args=[]):
             cmd, 
             capture_output=True, 
             text=True, 
-            check=True
+            check=True,
+            encoding='utf-8', 
+            errors='replace'
         )
         
         duration = time.time() - start_ts
-        print(f"✅ Finished: {full_job_name} ({duration:.2f}s)")
+        print(f"Finished: {full_job_name} ({duration:.2f}s)")
         log_job_end(job_id, "SUCCESS", f"Output: {result.stdout[:200]}...") # truncate log
         return True
 
     except subprocess.CalledProcessError as e:
         duration = time.time() - start_ts
-        print(f"❌ Failed: {full_job_name} ({duration:.2f}s)")
+        print(f"Failed: {full_job_name} ({duration:.2f}s)")
         print(f"Error Output: {e.stderr}")
         log_job_end(job_id, "FAILURE", f"Error: {e.stderr[:500]}")
         return False
     except Exception as e:
-        print(f"🔥 Critical Error: {e}")
+        print(f"Critical Error: {e}")
         log_job_end(job_id, "FAILURE", str(e))
         return False
 
 def main():
-    print("🌙 Midnight Jobs Wrapper Started")
+    print("Midnight Jobs Wrapper Started")
     master_job_id = log_job_start("Midnight Batch")
     
     steps = [
@@ -123,7 +125,7 @@ def main():
 
     final_status = "SUCCESS" if all_success else "WARNING"
     log_job_end(master_job_id, final_status, "Batch completed")
-    print(f"👋 All Jobs Finished. Batch Status: {final_status}")
+    print(f"All Jobs Finished. Batch Status: {final_status}")
 
 if __name__ == "__main__":
     main()
