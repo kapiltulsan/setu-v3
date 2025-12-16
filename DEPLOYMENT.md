@@ -8,6 +8,16 @@ This guide covers how to set up modules and automate deployment on your Raspberr
 - Raspberry Pi OS (64-bit recommended)
 - Python 3.10+
 - PostgreSQL 14+ with TimescaleDB
+- **Node.js 20+** (Required for Dashboard)
+
+### Install Node.js (via NVM)
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc
+nvm install 20
+nvm use 20
+nvm alias default 20
+```
 
 ### Clone & Install
 ```bash
@@ -19,6 +29,12 @@ cd setu-v3
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+
+# Setup Frontend
+cd frontend
+npm install
+npm run build
+cd ..
 ```
 
 ### Configure Environment
@@ -28,36 +44,48 @@ cp .env.example .env
 nano .env  # Enter your DB and API credentials
 ```
 
-## 2. Setting up Systemd Service
+## 2. Setting up Systemd Services
 To keep the application running in the background and restart on boot/crash.
 
-1. Create a service file:
+### Backend Service (Flask)
+
+1. Copy the provided service file:
+   ```bash
+   sudo cp systemd/setu-admin.service /etc/systemd/system/
+   ```
+
+2. (Optional) If your project path is different from `/home/pi/setu-v3`, edit the file:
    ```bash
    sudo nano /etc/systemd/system/setu-admin.service
    ```
 
-2. Add the following content (adjust paths if needed):
-   ```ini
-   [Unit]
-   Description=Setu V3 Admin Dashboard
-   After=network.target postgresql.service
+### Frontend Service (Next.js)
 
-   [Service]
-   User=pi
-   WorkingDirectory=/home/pi/setu-v3
-   Environment="PATH=/home/pi/setu-v3/venv/bin"
-   ExecStart=/home/pi/setu-v3/venv/bin/python app.py
-   Restart=always
-
-   [Install]
-   WantedBy=multi-user.target
+1. Copy the provided service file:
+   ```bash
+   sudo cp systemd/setu-dashboard.service /etc/systemd/system/
    ```
 
-3. Enable and start the service:
+2. **IMPORTANT**: Update the Node.js path in the service file.
+   First, find where your node is installed:
+   ```bash
+   which node
+   # OR if using nvm
+   nvm which current
+   ```
+   
+   Then edit the service file and update the `Environment="PATH=..."` line to match your node bin path:
+   ```bash
+   sudo nano /etc/systemd/system/setu-dashboard.service
+   ```
+
+3. Enable and start both services:
    ```bash
    sudo systemctl daemon-reload
    sudo systemctl enable setu-admin
+   sudo systemctl enable setu-dashboard
    sudo systemctl start setu-admin
+   sudo systemctl start setu-dashboard
    ```
 
 ## 3. Updating the Application
@@ -105,3 +133,27 @@ Automate data collection (Symbols, Indices, OHLC) to run daily at 00:30.
    ```bash
    systemctl list-timers --all | grep setu
    ```
+
+## 5. Accessing via Tailscale
+
+To securely access your dashboard from anywhere without opening public ports, use [Tailscale](https://tailscale.com/).
+
+### Enable Tailscale Serve
+This will expose your local port 3000 (Next.js dashboard) to your Tailnet.
+
+1. Run the following command on your Pi:
+   ```bash
+   sudo tailscale serve --bg 3000
+   ```
+   *Note: `--bg` runs it in the background.*
+
+2. Get your device name or IP:
+   ```bash
+   tailscale ip -4
+   ```
+
+3. Access the dashboard from any device on your Tailnet:
+   ```
+   http://<your-pi-tailscale-ip>:3000
+   ```
+   *Or use the MagicDNS name if enabled.*

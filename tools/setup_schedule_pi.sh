@@ -35,3 +35,4 @@ systemctl list-timers --all | grep setu
 
 echo ""
 echo "🎉 Done! The jobs will run daily at 00:30."
+    

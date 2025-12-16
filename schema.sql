@@ -60,6 +60,80 @@ CREATE SCHEMA ref;
 
 CREATE SCHEMA trading;
 
+--
+-- Name: trades; Type: TABLE; Schema: trading; Owner: -
+--
+
+CREATE TABLE trading.trades (
+    id SERIAL PRIMARY KEY,
+    symbol TEXT NOT NULL,
+    exchange TEXT DEFAULT 'NSE',
+    trade_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    txn_type TEXT NOT NULL CHECK (txn_type IN ('BUY', 'SELL')),
+    quantity NUMERIC(14,4) NOT NULL,
+    price NUMERIC(14,4) NOT NULL,
+    fees NUMERIC(14,4) DEFAULT 0,
+    net_amount NUMERIC(14,4) NOT NULL,
+    source TEXT DEFAULT 'MANUAL',
+    external_trade_id TEXT,
+    order_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_trades_symbol_date ON trading.trades (symbol, trade_date);
+CREATE INDEX idx_trades_date ON trading.trades (trade_date);
+
+
+--
+-- Name: portfolio; Type: TABLE; Schema: trading; Owner: -
+--
+
+CREATE TABLE trading.portfolio (
+    id SERIAL PRIMARY KEY,
+    date DATE NOT NULL,
+    symbol TEXT NOT NULL,
+    total_quantity NUMERIC(14,4) NOT NULL,
+    average_price NUMERIC(14,4) NOT NULL,
+    invested_value NUMERIC(14,4) NOT NULL,
+    current_value NUMERIC(14,4),
+    pnl NUMERIC(14,4),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(date, symbol)
+);
+
+CREATE INDEX idx_portfolio_date ON trading.portfolio (date);
+
+
+--
+-- Name: daily_pnl; Type: TABLE; Schema: trading; Owner: -
+--
+
+CREATE TABLE trading.daily_pnl (
+    id SERIAL PRIMARY KEY,
+    date DATE NOT NULL UNIQUE,
+    realized_pnl NUMERIC(14,4) DEFAULT 0,
+    unrealized_pnl NUMERIC(14,4) DEFAULT 0,
+    charges NUMERIC(14,4) DEFAULT 0,
+    net_pnl NUMERIC(14,4) DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+--
+-- Name: portfolio_view; Type: VIEW; Schema: trading; Owner: -
+--
+
+CREATE OR REPLACE VIEW trading.portfolio_view AS
+SELECT 
+    symbol,
+    total_quantity as net_quantity,
+    average_price,
+    invested_value,
+    current_value,
+    pnl,
+    date as snapshot_date
+FROM trading.portfolio
+WHERE date = (SELECT MAX(date) FROM trading.portfolio);
+
 
 SET default_tablespace = '';
 
