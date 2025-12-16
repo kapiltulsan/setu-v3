@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setu V3 - Portfolio & P&L</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --card: #1e1e1e;
+            --text: #e0e0e0;
+            --muted: #888;
+            --border: #333;
+            --green: #03dac6;
+            --red: #cf6679;
+            --blue: #64b5f6;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 25px; }
+        .header h1 { margin: 0; font-size: 1.6rem; }
+        .header a { color: var(--blue); text-decoration: none; font-size: 0.9rem; }
+        
+        .section { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); margin-bottom: 20px; }
+        h2 { margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; font-size: 1.1rem; color: var(--muted); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
+        th { color: var(--muted); font-weight: normal; font-size: 0.9rem; }
+        
+        .up { color: var(--green); }
+        .down { color: var(--red); }
+        
+        .upload-zone { border: 2px dashed var(--border); padding: 30px; text-align: center; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .upload-zone:hover { border-color: var(--blue); background: #252525; }
+        
+        .btn { padding: 8px 16px; background: var(--blue); color: #000; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn:disabled { background: var(--muted); cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📂 Portfolio & P&L</h1>
+            <a href="/">← Back to Dashboard</a>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="section">
+            <h2>📥 Import Data</h2>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <h3>Zerodha Tradebook</h3>
+                    <p style="font-size: 0.8rem; color: #888;">Upload 'tradebook-XXXX.csv' from Console</p>
+                    <form id="upload-zerodha" enctype="multipart/form-data">
+                        <input type="file" name="file" accept=".csv" required>
+                        <button type="submit" class="btn">Upload & Process</button>
+                    </form>
+                    <div id="msg-zerodha" style="margin-top: 10px; font-size: 0.9rem;"></div>
+                </div>
+                <!-- 
+                <div style="flex: 1; opacity: 0.5;">
+                    <h3>Smallcase (Coming Soon)</h3>
+                    <p style="font-size: 0.8rem; color: #888;">Upload 'orders.csv'</p>
+                    <button disabled class="btn">Upload</button>
+                </div>
+                -->
+            </div>
+        </div>
+
+        <!-- Portfolio Table -->
+        <div class="section">
+            <h2>📊 Current Holdings</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date (Snapshot)</th>
+                        <th>Symbol</th>
+                        <th>Qty</th>
+                        <th>Avg Price</th>
+                        <th>Invested</th>
+                        <th>Current Check</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in portfolio %}
+                    <tr>
+                        <td style="color: #666;">{{ row['date'] }}</td>
+                        <td style="font-weight: bold;">{{ row['symbol'] }}</td>
+                        <td>{{ row['total_quantity'] }}</td>
+                        <td>{{ "%.2f"|format(row['average_price']) }}</td>
+                        <td>{{ "%.2f"|format(row['invested_value']) }}</td>
+                        <td>
+                             <!-- Placeholder for live PnL if available -->
+                             -
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No holdings found. Upload trades to generate portfolio.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('upload-zerodha').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const msgBox = document.getElementById('msg-zerodha');
+            const btn = e.target.querySelector('button');
+            
+            msgBox.innerHTML = '<span style="color: yellow;">Uploading...</span>';
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/upload/zerodha', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    msgBox.innerHTML = `<span style="color: #03dac6;">✅ ${data.message}</span>`;
+                    setTimeout(() => location.reload(), 1500); 
+                } else {
+                    msgBox.innerHTML = `<span style="color: #cf6679;">❌ ${data.error}</span>`;
+                }
+            } catch (err) {
+                msgBox.innerHTML = `<span style="color: #cf6679;">❌ Error: ${err.message}</span>`;
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

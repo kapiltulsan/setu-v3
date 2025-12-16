@@ -16,18 +16,19 @@ source venv/bin/activate
 echo "📦 Installing/Updating Dependencies..."
 pip install -r requirements.txt
 
-# 4. Success Message & Reminders
-echo "✅ Code updated successfully."
-echo ""
-echo "⚠️  IMPORTANT REMINDERS:"
-echo "---------------------------------------------------"
-echo "1. If you made DB schema changes, run migrations:"
-echo "   Available migrations:"
-ls migrations/*.sql
-echo ""
-echo "   Run command:"
-echo "   python tools/run_migration.py migrations/<filename>"
-echo ""
-echo "2. Restart the Service to apply changes:"
-echo "   sudo systemctl restart setu-admin"
-echo "---------------------------------------------------"
+# 4. Update Frontend
+echo "🎨 Updating Frontend..."
+cd frontend
+npm install
+npm run build
+cd ..
+
+# 5. Restart Services
+echo "🔄 Restarting Services..."
+sudo systemctl restart setu-admin
+sudo systemctl restart setu-dashboard
+
+echo "✅ Deployment Complete! 🚀"
+echo "   - Modules updated."
+echo "   - Frontend rebuilt."
+echo "   - Services restarted."

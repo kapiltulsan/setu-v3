@@ -17,10 +17,13 @@ app = Flask(__name__)
 # Register Blueprints
 
 # Register Blueprints
+# Register Blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(charts_bp)
 app.register_blueprint(jobs_bp)
 app.register_blueprint(logs_bp)
+from modules.portfolio import portfolio_bp
+app.register_blueprint(portfolio_bp)
 
 def get_system_stats():
     """Helper to get system stats using psutil"""
@@ -90,5 +93,5 @@ def dashboard():
 if __name__ == '__main__':
     # Local Dev Run
     print("🚀 Starting Setu V3 Admin Dashboard...")
-    app.run(host='0.0.0.0', port=5000, debug=True, ssl_context='adhoc')
+    app.run(host='0.0.0.0', port=5000, debug=True)
 #

@@ -1,0 +1,15 @@
+[Unit]
+Description=Setu V3 Dashboard (Next.js)
+After=network.target setu-admin.service
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/setu-v3/frontend
+# Adjust path if node is installed via nvm or global
+Environment="PATH=/usr/bin:/usr/local/bin:/home/pi/.nvm/versions/node/v20.10.0/bin"
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
