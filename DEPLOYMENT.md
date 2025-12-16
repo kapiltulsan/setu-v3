@@ -157,3 +157,18 @@ This will expose your local port 3000 (Next.js dashboard) to your Tailnet.
    http://<your-pi-tailscale-ip>:3000
    ```
    *Or use the MagicDNS name if enabled.*
+
+## 6. Troubleshooting
+
+### `npm: command not found`
+- This means NVM isn't loaded or Node isn't installed.
+- **Fix**: Run `source ~/.bashrc` or reinstall Node via NVM as shown in Section 1.
+
+### `Failed to restart setu-dashboard.service: Unit not found`
+- You skipped step 2 ("Setting up Systemd Services").
+- **Fix**: Run the `sudo cp` commands listed in Section 2 to install the service files.
+
+### Dashboard not accessible on port 3000
+- Check if the service is running: `sudo systemctl status setu-dashboard`
+- Check logs: `sudo journalctl -u setu-dashboard -f`
+- If logs show "Exit status 1", it might be a Node path issue. Verify the `Environment="PATH=..."` line in `/etc/systemd/system/setu-dashboard.service`.

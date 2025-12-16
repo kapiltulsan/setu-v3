@@ -4,7 +4,8 @@ This document outlines the standard operating procedures (SOPs) for managing and
 
 ## 🖥️ Dashboard Operations
 
-**URL:** `https://<YOUR_PI_IP>:5000` (or `https://localhost:5000` locally)
+**Frontend (Main):** `http://<YOUR_PI_IP>:3000` (User Dashboard)
+**Backend (Admin):** `http://<YOUR_PI_IP>:5000` (System Dashboard)
 
 The dashboard is the central command center. It is divided into 4 main tiles:
 
@@ -88,9 +89,14 @@ If a job failed or you need to re-run data collection, you have two options:
 - **Restart the service**:
   ```bash
   # If using systemd
-  sudo systemctl restart setu-v3
+  sudo systemctl restart setu-dashboard
+  # OR
+  sudo systemctl restart setu-admin
   
   # If running manually
+  # Frontend
+  cd frontend && npm run dev
+  # Backend
   python app.py
   ```
 
