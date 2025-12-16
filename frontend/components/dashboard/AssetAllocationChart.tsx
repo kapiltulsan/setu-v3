@@ -83,7 +83,7 @@ const AssetAllocationChart = () => {
                         <Tooltip
                             contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '8px', color: '#fff' }}
                             itemStyle={{ color: '#fff' }}
-                            formatter={(value: number) => `₹${value.toLocaleString()}`}
+                            formatter={(value: any) => `₹${value?.toLocaleString()}`}
                         />
                         <Legend iconType="circle" />
                     </PieChart>

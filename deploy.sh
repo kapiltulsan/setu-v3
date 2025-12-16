@@ -49,6 +49,8 @@ restart_service() {
 }
 
 echo "🔄 Restarting Services..."
+# Reload systemd manager configuration to handle any file changes
+sudo systemctl daemon-reload
 restart_service "setu-admin"
 restart_service "setu-dashboard"
 
