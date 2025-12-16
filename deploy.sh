@@ -18,17 +18,41 @@ pip install -r requirements.txt
 
 # 4. Update Frontend
 echo "🎨 Updating Frontend..."
+
+# Load NVM (Node Version Manager)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
 cd frontend
 npm install
 npm run build
 cd ..
 
-# 5. Restart Services
+# 5. Check for Migrations
+echo "🔍 Checking for DB Migrations..."
+if ls migrations/*.sql 1> /dev/null 2>&1; then
+    echo "⚠️  Found migration files in migrations/. Check if they need to be run:"
+    ls migrations/*.sql
+    echo "   Run: python tools/run_migration.py migrations/<filename>"
+else
+    echo "✅ No migrations found."
+fi
+
+# 6. Restart Services
+restart_service() {
+    if systemctl list-units --full -all | grep -Fq "$1.service"; then
+        echo "   Restarting $1..."
+        sudo systemctl restart $1
+    else
+        echo "⚠️  Service $1 not found. Skipping restart."
+    fi
+}
+
 echo "🔄 Restarting Services..."
-sudo systemctl restart setu-admin
-sudo systemctl restart setu-dashboard
+restart_service "setu-admin"
+restart_service "setu-dashboard"
 
 echo "✅ Deployment Complete! 🚀"
 echo "   - Modules updated."
 echo "   - Frontend rebuilt."
-echo "   - Services restarted."
+echo "   - Services restarted (if active)."
