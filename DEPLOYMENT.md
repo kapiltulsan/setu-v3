@@ -38,7 +38,7 @@ cd ..
 ```
 
 ### Configure Environment
-Create the `.env` file:
+Create the `.env` file **in the root directory** (this configures the Backend):
 ```bash
 cp .env.example .env
 nano .env  # Enter your DB and API credentials
