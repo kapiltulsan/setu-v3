@@ -21,7 +21,7 @@ nvm alias default 20
 
 ### Clone & Install
 ```bash
-cd /home/pi
+cd /home/pi50001_admin
 git clone <your-repo-url> setu-v3
 cd setu-v3
 
@@ -54,7 +54,7 @@ To keep the application running in the background and restart on boot/crash.
    sudo cp systemd/setu-admin.service /etc/systemd/system/
    ```
 
-2. (Optional) If your project path is different from `/home/pi/setu-v3`, edit the file:
+2. (Optional) If your project path is different from `/home/pi50001_admin/SetuV3`, edit the file:
    ```bash
    sudo nano /etc/systemd/system/setu-admin.service
    ```
