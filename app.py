@@ -2,6 +2,7 @@ import os
 import socket
 import psutil
 from flask import Flask, render_template, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 
 # Import Modules
@@ -13,6 +14,7 @@ from modules.jobs import jobs_bp
 load_dotenv()
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
 # Register Blueprints
 
@@ -94,5 +96,5 @@ if __name__ == '__main__':
     # Local Dev Run
     print("🚀 Starting Setu V3 Admin Dashboard...")
     #app.run(host='0.0.0.0', port=5000, debug=True, ssl_context='adhoc')
-    app.run(host='0.0.0.0', port=5000, debug=True, ssl_context=('cert.pem', 'key.pem'))
+    app.run(host='0.0.0.0', port=5000, debug=True)
 #
