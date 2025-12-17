@@ -11,3 +11,4 @@ Restart=always
 RestartSec=10
 [Install]
 WantedBy=multi-user.target
+Environment="NODE_TLS_REJECT_UNAUTHORIZED=0"
