@@ -1,3 +1,4 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const { createServer } = require('https');
 const { parse } = require('url');
 const next = require('next');
@@ -14,7 +15,7 @@ app.prepare().then(() => {
     createServer(httpsOptions, (req, res) => {
         const parsedUrl = parse(req.url, true);
         handle(req, res, parsedUrl);
-    }).listen(3000, (err) => {
+    }).listen(3000, '0.0.0.0', (err) => {
         if (err) throw err;
         console.log('> Ready on https://localhost:3000');
     });

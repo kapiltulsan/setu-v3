@@ -8,7 +8,7 @@ WorkingDirectory=/home/pi50001_admin/SetuV3/frontend
 Environment="PATH=/usr/bin:/usr/local/bin:/home/pi50001_admin/.nvm/versions/node/v20.19.6/bin"
 ExecStart=/home/pi50001_admin/.nvm/versions/node/v20.19.6/bin/npm start
 Restart=always
+Environment="NODE_TLS_REJECT_UNAUTHORIZED=0"
 RestartSec=10
 [Install]
 WantedBy=multi-user.target
-Environment="NODE_TLS_REJECT_UNAUTHORIZED=0"
