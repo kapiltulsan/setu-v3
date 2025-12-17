@@ -42,3 +42,4 @@ next-env.d.ts
 
 #SSL File
 key.pem
+cert.pem
