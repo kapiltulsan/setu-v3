@@ -38,6 +38,12 @@ else
     echo "✅ No migrations found."
 fi
 
+# Copy service files to /etc/systemd/system/ to ensure latest config is used
+echo "📋 Copying systemd service files..."
+sudo cp systemd/setu-admin.service /etc/systemd/system/
+sudo cp systemd/setu-dashboard.service /etc/systemd/system/
+
+
 # 6. Restart Services
 restart_service() {
     if systemctl list-units --full -all | grep -Fq "$1.service"; then
@@ -49,10 +55,7 @@ restart_service() {
 }
 
 echo "🔄 Restarting Services..."
-# Copy service files to /etc/systemd/system/ to ensure latest config is used
-echo "📋 Copying systemd service files..."
-sudo cp systemd/setu-admin.service /etc/systemd/system/
-sudo cp systemd/setu-dashboard.service /etc/systemd/system/
+
 
 # Reload systemd manager configuration to handle any file changes
 sudo systemctl daemon-reload
