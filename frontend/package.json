@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 node server.js",
+    "start": "export NODE_ENV=production && node server.js",
     "lint": "eslint"
   },
   "dependencies": {
