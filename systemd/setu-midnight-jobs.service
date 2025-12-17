@@ -5,8 +5,8 @@ After=network.target postgresql.service
 [Service]
 Type=oneshot
 User=pi50001_admin
-WorkingDirectory=/home/pi50001_admin/SetuV3
-Environment="PATH=/home/pi50001_admin/SetuV3/venv/bin"
-ExecStart=/home/pi50001_admin/SetuV3/venv/bin/python tools/run_midnight_jobs.py
+WorkingDirectory=/home/pi50001_admin/setu-v3
+Environment="PATH=/home/pi50001_admin/setu-v3/venv/bin"
+ExecStart=/home/pi50001_admin/setu-v3/venv/bin/python tools/run_midnight_jobs.py
 StandardOutput=journal
 StandardError=journal

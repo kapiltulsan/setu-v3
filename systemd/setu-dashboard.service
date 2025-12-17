@@ -3,8 +3,8 @@ Description=Setu V3 Dashboard (Next.js)
 After=network.target setu-admin.service
 [Service]
 User=pi50001_admin
-WorkingDirectory=/home/pi50001_admin/SetuV3/frontend
-# Updated path for Node v20.19.6
+WorkingDirectory=/home/pi50001_admin/setu-v3/frontend
+# Explicit path for verified Node v20.19.6
 Environment="PATH=/usr/bin:/usr/local/bin:/home/pi50001_admin/.nvm/versions/node/v20.19.6/bin"
 ExecStart=/home/pi50001_admin/.nvm/versions/node/v20.19.6/bin/npm start
 Restart=always

@@ -98,8 +98,9 @@ chmod +x deploy.sh
 
 This script will:
 1. Pull the latest code.
-2. Update Python dependencies.
-3. Remind you to run migrations or restart the service.
+2. Update Python dependencies and Frontend.
+3. Automatically update `systemd` service files from the repo.
+4. Restart the services.
 
 ### Restarting the Service
 After updating code, always restart the service:
