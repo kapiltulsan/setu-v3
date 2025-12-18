@@ -9,6 +9,7 @@ Environment="PATH=/usr/bin:/usr/local/bin:/home/pi50001_admin/.nvm/versions/node
 ExecStart=/home/pi50001_admin/.nvm/versions/node/v20.19.6/bin/npm start
 Restart=always
 Environment="NODE_TLS_REJECT_UNAUTHORIZED=0"
+Environment="NODE_EXTRA_CA_CERTS=/home/pi50001_admin/SetuV3/cert.pem"
 RestartSec=10
 [Install]
 WantedBy=multi-user.target

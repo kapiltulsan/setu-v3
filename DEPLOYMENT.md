@@ -1,5 +1,14 @@
 # Deployment Guide (Raspberry Pi 5)
 
+> [!CAUTION]
+> **STRICT RULE: DO NOT EDIT CODE DIRECTLY ON THIS SERVER (PRODUCTION).**
+> All changes must be made on your **Development System**, pushed to GitHub, and then pulled here.
+
+## 0. Deployment Workflow
+1.  **Develop:** Make changes on your local PC (Dev System).
+2.  **Commit & Push:** Push changes to GitHub (`git push origin dev` -> merge to `main`).
+3.  **Deploy:** Pull changes on this Pi (`git pull origin main`) and restart services.
+
 This guide covers how to set up modules and automate deployment on your Raspberry Pi 5.
 
 ## 1. Initial Setup
