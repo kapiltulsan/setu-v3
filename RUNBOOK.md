@@ -93,11 +93,14 @@ If a job failed or you need to re-run data collection, you have two options:
   # OR
   sudo systemctl restart setu-admin
   
-  # If running manually
-  # Frontend
-  cd frontend && npm run dev
-  # Backend
-  python app.py
+   # If running manually (Windows)
+   .\tools\start_dev.ps1
+   
+   # If running manually (Linux/Mac)
+   # Frontend
+   cd frontend && npm run dev
+   # Backend
+   python app.py
   ```
 
 ### 2. "Token Invalid" Errors in Logs

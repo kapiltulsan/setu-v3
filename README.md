@@ -16,7 +16,13 @@ python -m venv venv
 ./venv/Scripts/Activate.ps1  # Windows PowerShell
 
 # Install packages
+# Install packages
 pip install -r requirements.txt
+
+# Install Frontend Dependencies
+cd frontend
+npm install
+cd ..
 ```
 
 ### 2. Configuration
@@ -46,11 +52,17 @@ python tools/run_migration.py migrations/001_update_trades.sql
 ## 🛠 Usage
 
 ### Start the Application
-```bash
-python app.py
+### Start the Application (Windows Dev)
+We have a helper script to run both Backend (5000) and Frontend (3000):
+
+```powershell
+.\tools\start_dev.ps1
 ```
-Access the dashboard at `https://localhost:5000`.
-*Note: The app uses ad-hoc SSL certificates for local HTTPS development.*
+This will open two windows:
+- **Backend**: `http://localhost:5000`
+- **Frontend**: `http://localhost:3000`
+
+*Note: The app uses ad-hoc SSL certificates for local HTTPS development if configured, but defaults to HTTP for dev.*
 
 ### Developer Tools
 - **Generate DB Documentation**:
