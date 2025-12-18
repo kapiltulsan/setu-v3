@@ -4,6 +4,16 @@
 
 echo "🚀 Starting Deployment..."
 
+# 0. Safety Check: Ensure we are on 'main'
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [[ "$CURRENT_BRANCH" != "main" ]]; then
+    echo "❌ ERROR: Production deployment requires being on 'main' branch."
+    echo "   You are currently on: $CURRENT_BRANCH"
+    echo "   Aborting to prevent mistakes."
+    exit 1
+fi
+
+
 # 1. Pull latest code
 echo "📥 Pulling latest changes from Git..."
 git pull origin main
