@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setu V3 Admin</title>
+    <title>Admin Panel</title>
     <style>
         /* --- Dark Theme Variables --- */
         :root {
@@ -135,6 +135,7 @@
         .btn-login {
             background-color: #ff5722;
             color: white;
+            border: none;
         }
 
         .btn-login:hover {
@@ -191,6 +192,7 @@
         .ERROR {
             color: var(--red);
             font-weight: bold;
+            color: var(--red);
         }
 
         .WARNING {
@@ -207,8 +209,8 @@
     <div class="container">
         <div class="header">
             <div>
-                <h1>🌉 Setu V3</h1>
-                <small>Trading Infrastructure Control Deck</small>
+                <h1>Admin Panel</h1>
+                <small>Setu V3 Backend Control Deck</small>
             </div>
             <div class="system-info">
                 <div id="clock">--:--:--</div>
@@ -226,12 +228,14 @@
                     {% include 'components/tile_system.html' %}
                 </div>
 
-                <div style="padding: 15px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <div
+                    style="padding: 15px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
                     <div>
                         <strong style="display: block; font-size: 1.1rem;">📂 Portfolio & P&L</strong>
                         <small style="color: #888;">Upload trades, view holdings</small>
                     </div>
-                    <a href="/portfolio" class="btn" style="width: auto; background: var(--blue); color: #000; padding: 8px 15px;">Manage</a>
+                    <a href="/portfolio" class="btn"
+                        style="width: auto; background: var(--blue); color: #000; padding: 8px 15px;">Manage</a>
                 </div>
 
                 <div style="height: auto;">
