@@ -11,6 +11,7 @@ from psycopg2.extras import execute_batch, RealDictCursor
 from kiteconnect import KiteConnect, exceptions as kite_exceptions
 from dotenv import load_dotenv
 from db_logger import EnterpriseLogger
+from modules import notifier
 
 # --- Config ---
 load_dotenv()
@@ -155,6 +156,7 @@ def process_symbol(kite_session, pool, symbol, token, timeframe, table_suffix):
         # This is a critical, non-recoverable error for this run.
         # Re-raise to stop the entire collector job immediately.
         logger.log("error", "Kite Token Exception - Session may have expired. Stopping job.", symbol=symbol, exc_info=True)
+        notifier.send_notification("Job Failed: Data Collector", "Kite Token Exception: Token is invalid or expired.", priority="high")
         raise Exception("Kite session invalid, stopping collector.") from e
     except Exception as e:
         # Re-raise the exception to be caught by the main thread's executor loop.
