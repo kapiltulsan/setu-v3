@@ -94,11 +94,29 @@ def send_notification(title, message, priority='default'):
             print(f"❌ Failed to send NTFY alert: {e}")
 
 if __name__ == "__main__":
-    # Test Block
-    print("🔔 Sending Test Notification...")
-    send_notification(
-        "Test Alert 🚀", 
-        "This is a test notification from the Setu V3 system.",
-        priority="high"
-    )
-    print("✅ Done.")
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Send notifications via configured channels (Telegram/NTFY)")
+    parser.add_argument("-t", "--title", required=True, help="Notification Title")
+    parser.add_argument("-m", "--message", required=True, help="Notification Message")
+    parser.add_argument("-p", "--priority", default="default", choices=["default", "high"], help="Priority (default/high)")
+    parser.add_argument("--type", help="Override notifier type (telegram/ntfy)")
+    
+    # If no arguments provided, likely being run manually for test
+    if len(os.sys.argv) == 1:
+        print("🔔 Sending Test Notification...")
+        send_notification(
+            "Test Alert 🚀", 
+            "This is a test notification from the Setu V3 system.",
+            priority="high"
+        )
+        print("✅ Done.")
+    else:
+        args = parser.parse_args()
+        
+        # Optional: Temporary override of notifier type if specified
+        if args.type:
+            NOTIFIER_TYPE = args.type
+            
+        send_notification(args.title, args.message, priority=args.priority)
+        print("✅ Notification sent (queued for async or sent synchronously).")

@@ -163,13 +163,36 @@ To receive alerts to your mobile when Zerodha token expires:
         TELEGRAM_CHAT_ID=YOUR_ID
         DASHBOARD_URL=http://pi5-setu:3000
         ```
-4.  **Setup Cron Job (Nagging Monitor)**:
+
+### Advanced: Using a Telegram Group
+To send alerts to a group instead of a single person:
+1.  **Create a New Group** on Telegram.
+2.  **Add your Bot** to the group as a member.
+3.  **Promote to Admin**: Click Group Info > Edit > Administrators > Add Admin > Select your Bot (Required for the bot to read/write freely).
+4.  **Get Group ID**:
+    -   Send a dummy message in the group (e.g., "Hello").
+    -   Open this URL in your browser (replace `<TOKEN>` with your Bot Token):
+        `https://api.telegram.org/bot<TOKEN>/getUpdates`
+    -   Look for `"chat":{"id":-100xxxxxxxxx,"title":"...`.
+    -   The ID starting with `-100` is your **Group Chat ID**.
+5.  **Update .env**: Use this ID in `TELEGRAM_CHAT_ID`.
+### 4. Setup Cron Job (Nagging Monitor)
     -   Edit crontab: `crontab -e`
     -   Add the following line to run the Smart Monitor daily at 8:30 AM:
         ```bash
         # Run Token Monitor at 8:30 AM (Loops internally every 30m until success or 4 PM)
         30 8 * * 1-5 cd /home/pi50001_admin/setu-v3 && /home/pi50001_admin/setu-v3/venv/bin/python tools/token_monitor.py >> logs/cron_monitor.log 2>&1
         ```
+
+### 5. CLI Usage (Scripts/Cron)
+You can use the notification system from the command line in any script:
+```bash
+# General Usage
+python -m modules.notifier -t "Title" -m "Message Body" -p "high"
+
+# Example: Notify on deploy success
+python -m modules.notifier -t "Deployment" -m "Deploy Script Ran Successfully"
+```
 
 ## 6. Accessing via Tailscale
 
