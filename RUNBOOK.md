@@ -42,7 +42,7 @@ The dashboard is the central command center. It is divided into 4 main tiles:
 ### 5. 🔔 Notifications (Telegram)
 - Get alerts for Expired Tokens and Job Failures.
 - **Setup**: Configure `TELEGRAM_BOT_TOKEN` and `CHAT_ID` in `.env`.
-- **Test**: Run `python modules/notifier.py` to send a test alert.
+- **Test**: Run `python -m modules.notifier -t "Test" -m "Hello"` to send a test alert.
 
 ### 6. 📜 Live Logs
 - Displays the last 100 log entries from the application.

@@ -179,6 +179,10 @@ def main():
     buffer_days = BUFFER_RULES.get(args.timeframe, 0)
     
     logger.log("info", f"Starting Data Collector", timeframe=args.timeframe, backfill=backfill_days, buffer=buffer_days)
+    notifier.send_notification(
+        "Data Collector Started", 
+        f"Starting {args.timeframe} collection\nBackfill: {backfill_days}d | Buffer: {buffer_days}d"
+    )
 
     try:
         # --- REFACTOR: Initialize shared resources once ---
@@ -252,9 +256,22 @@ def main():
         logger.log("info", "Job Complete", duration=duration, completed=completed, errors=errors)
         print(f"✅ DONE. Time: {duration:.2f}s | Success: {completed} | Errors: {errors}")
 
+        notifier.send_notification(
+            "Data Collector Completed", 
+            f"✅ Job Finished for {args.timeframe}\n"
+            f"Time: {duration:.2f}s\n"
+            f"Success: {completed}\n"
+            f"Errors: {errors}"
+        )
+
     except Exception as e:
         logger.log("error", "Critical Collector Failure", exc_info=True)
         print(f"🔥 CRITICAL FAIL: {e}")
+        notifier.send_notification(
+            "Data Collector Failed", 
+            f"🔥 Critical Error in {args.timeframe} job:\n{str(e)}", 
+            priority="high"
+        )
     finally:
         if 'db_pool' in locals() and db_pool:
             db_pool.closeall()

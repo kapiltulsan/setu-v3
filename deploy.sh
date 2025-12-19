@@ -76,3 +76,6 @@ echo "✅ Deployment Complete! 🚀"
 echo "   - Modules updated."
 echo "   - Frontend rebuilt."
 echo "   - Services restarted (if active)."
+
+# Send Notification
+python -m modules.notifier -t "Deployment" -m "✅ Setu V3 Deployed Successfully on $(hostname)" -p "default"
