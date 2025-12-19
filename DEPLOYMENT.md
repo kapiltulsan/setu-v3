@@ -144,7 +144,34 @@ Automate data collection (Symbols, Indices, OHLC) to run daily at 00:30.
    systemctl list-timers --all | grep setu
    ```
 
-## 5. Accessing via Tailscale
+## 5. Setting up Notifications (Telegram)
+
+To receive alerts to your mobile when Zerodha token expires:
+
+1.  **Create a Telegram Bot**:
+    -   Search for `@BotFather` on Telegram.
+    -   Send `/newbot`.
+    -   Copy the HTTP API Token.
+2.  **Get Chat ID**:
+    -   Start a chat with your new bot.
+    -   Search for `@userinfobot` to get your ID.
+3.  **Update Config**:
+    -   Edit `.env` inside `setu-v3`:
+        ```bash
+        NOTIFIER_TYPE=telegram
+        TELEGRAM_BOT_TOKEN=YOUR_TOKEN
+        TELEGRAM_CHAT_ID=YOUR_ID
+        DASHBOARD_URL=http://pi5-setu:3000
+        ```
+4.  **Setup Cron Job (Nagging Monitor)**:
+    -   Edit crontab: `crontab -e`
+    -   Add the following line to run the Smart Monitor daily at 8:30 AM:
+        ```bash
+        # Run Token Monitor at 8:30 AM (Loops internally every 30m until success or 4 PM)
+        30 8 * * 1-5 cd /home/pi50001_admin/setu-v3 && /home/pi50001_admin/setu-v3/venv/bin/python tools/token_monitor.py >> logs/cron_monitor.log 2>&1
+        ```
+
+## 6. Accessing via Tailscale
 
 To securely access your dashboard from anywhere without opening public ports, use [Tailscale](https://tailscale.com/).
 
@@ -168,7 +195,7 @@ This will expose your local port 3000 (Next.js dashboard) to your Tailnet.
    ```
    *Or use the MagicDNS name if enabled.*
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 ### `npm: command not found`
 - This means NVM isn't loaded or Node isn't installed.

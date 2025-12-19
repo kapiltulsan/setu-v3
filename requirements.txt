@@ -6,5 +6,6 @@ psutil
 psycopg2-binary
 pytz
 pyopenssl
+requests
 
 pandas
