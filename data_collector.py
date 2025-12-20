@@ -156,7 +156,7 @@ def process_symbol(kite_session, pool, symbol, token, timeframe, table_suffix):
         # This is a critical, non-recoverable error for this run.
         # Re-raise to stop the entire collector job immediately.
         logger.log("error", "Kite Token Exception - Session may have expired. Stopping job.", symbol=symbol, exc_info=True)
-        notifier.send_notification("Job Failed: Data Collector", "Kite Token Exception: Token is invalid or expired.", priority="high")
+        # notifier.send_notification removed to prevent spam. Exception will be caught by main loop.
         raise Exception("Kite session invalid, stopping collector.") from e
     except Exception as e:
         # Re-raise the exception to be caught by the main thread's executor loop.
@@ -206,7 +206,7 @@ def main():
         print(f"🚀 Starting Collection for {len(universe)} symbols ({args.timeframe})")
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
-            futures = []
+            future_to_symbol = {} # Map future to symbol for error tracking
             
             def chunker(seq, size):
                 return (seq[pos:pos + size] for pos in range(0, len(seq), size))
@@ -219,7 +219,7 @@ def main():
                 for symbol, token in batch:
                     # Pass shared resources to the worker
                     future = executor.submit(process_symbol, kite_session, db_pool, symbol, token, args.timeframe, table_suffix)
-                    futures.append(future)
+                    future_to_symbol[future] = symbol
 
                 print(f"⚡ Fired Batch {batch_num}/{total_batches} ({len(batch)} jobs)...")
                 time.sleep(BATCH_DELAY)
@@ -227,8 +227,10 @@ def main():
             print("⏳ Waiting for all jobs to finish...")
             completed = 0
             errors = 0
-            
-            for future in concurrent.futures.as_completed(futures):
+            failed_jobs = [] # List of (symbol, reason)
+
+            for future in concurrent.futures.as_completed(future_to_symbol):
+                symbol = future_to_symbol[future]
                 try:
                     # Get result from worker
                     result = future.result(timeout=JOB_TIMEOUT) # This will re-raise exceptions from the worker
@@ -243,25 +245,43 @@ def main():
                         
                 except concurrent.futures.TimeoutError:
                     errors += 1
-                    logger.log("error", "Job Timeout (Killed)")
-                    print("❌ A job timed out!")
+                    error_msg = "Timeout (Killed)"
+                    failed_jobs.append((symbol, error_msg))
+                    logger.log("error", "Job Timeout", symbol=symbol)
+                    print(f"❌ {symbol} timed out!")
                 except Exception as e:
-                    # --- REFACTOR: Catch propagated exceptions from the worker ---
-                    # The logger automatically includes the stack trace because exc_info=True is set in EnterpriseLogger.
                     errors += 1
-                    logger.log("error", "Job crashed in executor", exc_info=True)
-                    print(f"❌ Job Failed: {e}")
+                    error_msg = str(e)
+                    failed_jobs.append((symbol, error_msg))
+                    logger.log("error", "Job crashed", symbol=symbol, exc_info=True)
+                    print(f"❌ {symbol} Failed: {e}")
 
         duration = time.time() - start_time
         logger.log("info", "Job Complete", duration=duration, completed=completed, errors=errors)
         print(f"✅ DONE. Time: {duration:.2f}s | Success: {completed} | Errors: {errors}")
 
+        # --- Consolidated Notification ---
+        msg_lines = [
+            f"✅ Job Finished for {args.timeframe}",
+            f"Time: {duration:.2f}s",
+            f"Success: {completed}",
+            f"Errors: {errors}"
+        ]
+
+        if failed_jobs:
+            msg_lines.append("\n⚠️ Failed Symbols:")
+            # List top 10 failures
+            for sym, reason in failed_jobs[:10]:
+                msg_lines.append(f"- {sym}: {reason[:50]}...") # Truncate reason
+            
+            if len(failed_jobs) > 10:
+                msg_lines.append(f"...and {len(failed_jobs) - 10} more.")
+
+        priority = "high" if errors > 0 else "default"
         notifier.send_notification(
             "Data Collector Completed", 
-            f"✅ Job Finished for {args.timeframe}\n"
-            f"Time: {duration:.2f}s\n"
-            f"Success: {completed}\n"
-            f"Errors: {errors}"
+            "\n".join(msg_lines),
+            priority=priority
         )
 
     except Exception as e:
