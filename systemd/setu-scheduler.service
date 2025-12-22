@@ -1,0 +1,18 @@
+[Unit]
+Description=Setu V3 Central Scheduler Service
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=pi50001_admin
+WorkingDirectory=/home/pi50001_admin/setu-v3
+Environment="PATH=/home/pi50001_admin/setu-v3/venv/bin"
+# Run as module to ensure imports work correctly
+ExecStart=/home/pi50001_admin/setu-v3/venv/bin/python -m modules.scheduler.service
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/pi50001_admin/setu-v3/logs/scheduler/service.log
+StandardError=append:/home/pi50001_admin/setu-v3/logs/scheduler/service.log
+
+[Install]
+WantedBy=multi-user.target
