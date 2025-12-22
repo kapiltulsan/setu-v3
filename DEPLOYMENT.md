@@ -110,6 +110,10 @@ This script will:
 2. Update Python dependencies and Frontend.
 3. Automatically update `systemd` service files from the repo.
 4. Restart the services.
+5. **CRITICAL**: Check for new DB migrations in `migrations/` and run them if needed:
+   ```bash
+   python tools/run_migration.py migrations/apply_migration_005.py
+   ```
 
 ### Restarting the Service
 After updating code, always restart the service:

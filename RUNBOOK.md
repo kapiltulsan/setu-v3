@@ -39,6 +39,12 @@ The dashboard is the central command center. It is divided into 4 main tiles:
 - **On Windows**: Managed via `Task Scheduler` (runs daily at 00:30).
 - Check `tools/` folder for setup scripts.
 
+### 5. 💰 Portfolio Collector
+- **Purpose**: Fetches Order Book, Holdings, and Net Positions once per day.
+- **Run**: `python portfolio_collector.py`
+- **Output**: Writes to `trading.orders`, `trading.portfolio`, and `trading.positions`.
+
+
 ### 5. 🔔 Notifications (Telegram)
 - Get alerts for Expired Tokens and Job Failures.
 - **Setup**: Configure `TELEGRAM_BOT_TOKEN` and `CHAT_ID` in `.env`.

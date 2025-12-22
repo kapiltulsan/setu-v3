@@ -36,6 +36,8 @@ def api_portfolio_summary():
             "holdings": portfolio_rows # RealDictCursor returns list of dicts
         })
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @portfolio_bp.route('/api/upload/zerodha', methods=['POST'])
