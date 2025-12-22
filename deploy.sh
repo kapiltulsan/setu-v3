@@ -52,7 +52,7 @@ fi
 echo "📋 Copying systemd service files..."
 sudo cp systemd/setu-admin.service /etc/systemd/system/
 sudo cp systemd/setu-dashboard.service /etc/systemd/system/
-
+sudo cp systemd/setu-scheduler.service /etc/systemd/system/
 
 # 6. Restart Services
 restart_service() {
@@ -60,9 +60,27 @@ restart_service() {
         echo "   Restarting $1..."
         sudo systemctl restart $1
     else
-        echo "⚠️  Service $1 not found. Skipping restart."
+        echo "⚠️  Service $1 not found. Enabling..."
+        sudo systemctl enable $1
+        sudo systemctl start $1
     fi
 }
+
+echo "🔄 Restarting Services..."
+
+# Reload systemd manager configuration to handle any file changes
+sudo systemctl daemon-reload
+
+# Disable old midnight timer if valid
+if systemctl is-active --quiet setu-midnight-jobs.timer; then
+    echo "🛑 Disabling old midnight-jobs timer (replaced by scheduler)..."
+    sudo systemctl disable --now setu-midnight-jobs.timer
+fi
+
+restart_service "setu-admin"
+restart_service "setu-dashboard"
+restart_service "setu-scheduler"
+
 
 echo "🔄 Restarting Services..."
 
