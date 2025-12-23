@@ -41,6 +41,47 @@ logger = logging.getLogger("setu_scheduler")
 def get_db_connection():
     return psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
 
+def log_job_start(job_name):
+    """Log job start to DB."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO sys.job_history (job_name, start_time, status, details)
+                VALUES (%s, NOW(), 'RUNNING', 'Job Started')
+                RETURNING id
+            """, (job_name,))
+            history_id = cur.fetchone()[0]
+        conn.commit()
+        return history_id
+    except Exception as e:
+        logger.error(f"Failed to log start for {job_name}: {e}")
+        return None
+    finally:
+        if conn: conn.close()
+
+def log_job_end(history_id, status, details, log_path=None, duration_seconds=0):
+    """Log job end to DB."""
+    if not history_id:
+        return
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE sys.job_history 
+                SET end_time = NOW(),
+                    status = %s, 
+                    details = %s,
+                    log_path = %s,
+                    duration_seconds = %s
+                WHERE id = %s
+            """, (status, details, log_path, duration_seconds, history_id))
+        conn.commit()
+    except Exception as e:
+        logger.error(f"Failed to log end for history_id {history_id}: {e}")
+    finally:
+        if conn: conn.close()
+
 def run_job_wrapper(job_row):
     """
     Wrapper to execute the actual command.
@@ -50,22 +91,10 @@ def run_job_wrapper(job_row):
     logger.info(f"🚀 Starting Job: {job_name}")
     
     # 1. Log Start to DB
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO sys.job_history (job_id, status, start_time)
-                VALUES (%s, 'RUNNING', NOW())
-                RETURNING id;
-            """, (job_row['id'],))
-            history_id = cur.fetchone()[0]
-        conn.commit()
-    except Exception as e:
-        logger.error(f"Failed to log start for {job_name}: {e}")
-        if conn: conn.close()
+    history_id = log_job_start(job_name)
+    if not history_id:
+        logger.error(f"Could not create history entry for {job_name}. Aborting job.")
         return
-    finally:
-        if conn: conn.close()
     
     # 2. Setup Log File
     timestamp = datetime.datetime.now(IST).strftime('%Y%m%d_%H%M%S')
@@ -124,24 +153,7 @@ def run_job_wrapper(job_row):
     duration = time.time() - start_time
     
     # 4. Log End to DB
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                UPDATE sys.job_history 
-                SET status = %s, end_time = NOW(), log_path = %s, exit_message = %s, duration_seconds = %s
-                WHERE id = %s;
-            """, (status, log_path, error_msg, duration, history_id))
-            
-            if status == 'SUCCESS':
-                # Get job_id from history to be safe/consistent
-                cur.execute("UPDATE sys.scheduled_jobs SET last_run_at = NOW() WHERE id = %s", (job_row['id'],))
-                
-        conn.commit()
-    except Exception as e:
-        logger.error(f"Failed to log end for {job_name}: {e}")
-    finally:
-        conn.close()
+    log_job_end(history_id, status, error_msg, log_path, duration)
 
     logger.info(f"🏁 Finished Job: {job_name} | Status: {status} | Duration: {duration:.2f}s")
     

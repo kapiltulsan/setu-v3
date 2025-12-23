@@ -26,18 +26,19 @@ The dashboard is the central command center. It is divided into 4 main tiles:
   - This redirects you to Kite. Login there, and you will be automatically returned to the dashboard.
   - The token is saved to `tokens.json`.
 
-### 3. 🌙 Midnight Jobs
-- **Purpose**: Daily market data collection and maintenance.
-- **Status Indicators**:
-  - `SUCCESS`: Job completed successfully.
-  - `FAILURE`: Job failed (check logs).
-  - `WARNING`: Job finished but with non-critical issues.
-- **Refresh**: The tile updates automatically every 30 seconds.
+### 3. ⏰ Platform Scheduler (Admin Panel)
+- **Location**: Admin Dashboard (`:5000`) > Scheduler Tile.
+- **Purpose**: Centralized management of all background jobs (Midnight Batch, Market Data, Sync).
+- **Features**:
+  - **Status**: View current status (Pending, Running, Success, Failure).
+  - **Actions**: Manually Trigger ("Run Now") or Disable jobs.
+  - **History**: View last run time and duration.
+
 
 ### 4. ⏰ Auto-Schedule Status
-- **On Linux/Pi**: Managed via `systemd` (runs daily at 00:30).
-- **On Windows**: Managed via `Task Scheduler` (runs daily at 00:30).
-- Check `tools/` folder for setup scripts.
+- **Service**: Managed by `setu-admin` (Internal Scheduler).
+- **Verification**: Check the **Scheduler Tile** on the Admin Panel.
+- **Logs**: `logs/scheduler/service.log`
 
 ### 5. 💰 Portfolio Collector
 - **Purpose**: Fetches Order Book, Holdings, and Net Positions once per day.
@@ -71,10 +72,11 @@ The dashboard is the central command center. It is divided into 4 main tiles:
 ### 🏃‍♂️ Running Midnight Jobs Manually
 If a job failed or you need to re-run data collection, you have two options:
 
-**Option A: Via Dashboard (Recommended)**
-1. Go to the **Midnight Jobs** tile.
-2. Click the **"▶ Run Now"** button.
-3. Confirm the action.
+**Option A: Via Admin Panel (Recommended)**
+1. Go to the **Admin Dashboard** (`http://<IP>:5000`).
+2. Locate the **Scheduler** tile.
+3. Find **midnight_batch** in the list.
+4. Click **"Run Now"**.
 
 **Option B: Via Terminal**
 1. SSH into the server (or open terminal locally).
