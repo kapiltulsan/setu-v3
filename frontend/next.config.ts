@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
-// Bypass SSL check for self-signed certificates in development
-if (process.env.NODE_ENV !== 'production') {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-}
+// Bypass SSL check for self-signed certificates (Required for local proxy to Flask)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const nextConfig: NextConfig = {
   async rewrites() {

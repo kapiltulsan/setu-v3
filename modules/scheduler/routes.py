@@ -35,12 +35,12 @@ def list_jobs():
                     j.*,
                     h.status as last_status,
                     h.end_time as last_run_end,
-                    h.duration_seconds as last_duration
+                    EXTRACT(EPOCH FROM (h.end_time - h.start_time)) as last_duration
                 FROM sys.scheduled_jobs j
                 LEFT JOIN LATERAL (
-                    SELECT status, end_time, duration_seconds 
+                    SELECT status, start_time, end_time 
                     FROM sys.job_history 
-                    WHERE job_id = j.id 
+                    WHERE job_name = j.name 
                     ORDER BY id DESC LIMIT 1
                 ) h ON TRUE
                 ORDER BY j.name;

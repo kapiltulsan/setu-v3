@@ -1,53 +1,86 @@
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 12px; margin-bottom: 15px;">
         <h2 style="border: none; margin: 0; padding: 0; margin-bottom: 0;">⏰ Scheduler</h2>
-        <a href="/admin/scheduler" style="padding: 4px 12px; background: #1e1e1e; color: #64b5f6; border: 1px solid #64b5f6; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; text-decoration: none; transition: all 0.2s;">
-            Manage
-        </a>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <span id="sched-status-badge" class="badge">Checking...</span>
+            <a href="/admin/scheduler" style="padding: 4px 12px; background: #1e1e1e; color: #64b5f6; border: 1px solid #64b5f6; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; text-decoration: none; transition: all 0.2s;">
+                Manage
+            </a>
+        </div>
     </div>
     
-    <div id="scheduler-summary" style="display: flex; flex-direction: column; gap: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: #888;">Service Status</span>
-            <span id="sched-status-badge" class="badge">Checking...</span>
-        </div>
+    <div id="scheduler-summary" style="display: flex; flex-direction: column; gap: 12px; height: 300px; overflow-y: auto;">
         
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: #888;">Running Jobs</span>
-            <span id="sched-running-count" style="font-weight: bold;">--</span>
-        </div>
+        <!-- Job List Container -->
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+            <thead>
+                <tr style="text-align: left; color: #888; border-bottom: 1px solid #333;">
+                    <th style="padding-bottom: 8px;">Job</th>
+                    <th style="padding-bottom: 8px;">Schedule</th>
+                    <th style="padding-bottom: 8px; text-align: right;">Status</th>
+                </tr>
+            </thead>
+            <tbody id="sched-jobs-list">
+                <tr><td colspan="3" style="text-align: center; color: #555; padding-top: 20px;">Loading jobs...</td></tr>
+            </tbody>
+        </table>
 
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: #888;">Next Job</span>
-            <small id="sched-next-job" style="color: #aaa; text-align: right;">--</small>
-        </div>
     </div>
 </div>
 
 <script>
     async function loadSchedulerStatus() {
         try {
-            // Heartbeat
-            const res = await fetch('/api/scheduler/status');
-            const data = await res.json();
+            // 1. Service Status
+            const resStatus = await fetch('/api/scheduler/status');
+            const statusData = await resStatus.json();
             
             const badge = document.getElementById('sched-status-badge');
-            if (data.status === 'RUNNING') {
+            if (statusData.status === 'RUNNING') {
                 badge.innerText = 'ACTIVE';
                 badge.className = 'badge active';
-                
-                // Parse Info
-                if(data.info) {
-                     document.getElementById('sched-running-count').innerText = data.info.jobs_running || 0;
-                }
             } else {
                 badge.innerText = 'DOWN';
                 badge.className = 'badge expired';
-                document.getElementById('sched-running-count').innerText = '0';
             }
+
+            // 2. Job List
+            const resJobs = await fetch('/api/scheduler/jobs');
+            const jobs = await resJobs.json();
             
-            // Getting 'Next Job' is tricky from generic API, maybe fetch job list and calc?
-            // For now, let's just show Active status.
+            const tbody = document.getElementById('sched-jobs-list');
+            if(jobs.length === 0) {
+                 tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #555; padding-top: 20px;">No jobs configured.</td></tr>';
+                 return;
+            }
+
+            let html = '';
+            jobs.forEach(job => {
+                let statusColor = '#888';
+                let statusText = job.last_status || 'PENDING';
+                
+                if (statusText === 'SUCCESS') statusColor = 'var(--green)';
+                else if (statusText === 'FAILURE') statusColor = 'var(--red)';
+                else if (statusText === 'RUNNING') statusColor = 'var(--orange)';
+
+                // Clean up schedule display
+                const schedule = job.cron_schedule ? job.cron_schedule : 'Manual';
+
+                html += `
+                    <tr style="border-bottom: 1px solid #222;">
+                        <td style="padding: 8px 0; font-weight: 500;">
+                            ${job.name}
+                            <div style="font-size: 0.75rem; color: #555;">${job.type}</div>
+                        </td>
+                        <td style="padding: 8px 0; color: #aaa; font-family: monospace;">${schedule}</td>
+                        <td style="padding: 8px 0; text-align: right;">
+                            <span style="color: ${statusColor}; font-weight: bold; font-size: 0.8rem;">${statusText}</span>
+                            <div style="font-size: 0.7rem; color: #555;">${job.last_run_end ? new Date(job.last_run_end).toLocaleTimeString() : '-'}</div>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
             
         } catch (e) {
             console.error(e);
