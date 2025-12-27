@@ -94,7 +94,7 @@ def job_history():
             cur.execute("""
                 SELECT h.*, j.name as job_name 
                 FROM sys.job_history h
-                JOIN sys.scheduled_jobs j ON h.job_id = j.id
+                JOIN sys.scheduled_jobs j ON h.job_name = j.name
                 ORDER BY h.id DESC LIMIT 50
             """)
             history = cur.fetchall()

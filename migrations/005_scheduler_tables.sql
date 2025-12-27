@@ -43,6 +43,6 @@ CREATE TABLE IF NOT EXISTS sys.service_status (
 INSERT INTO sys.scheduled_jobs (name, description, command, schedule_cron, is_enabled)
 VALUES 
     ('portfolio_sync', 'Daily Portfolio Sync from Zerodha', 'python portfolio_collector.py', '15 17 * * *', true),
-    ('market_data_day', 'Daily OHLC Data Collection', 'python tools/data_collector.py day', '30 17 * * *', true),
-    ('market_data_60m', 'Hourly OHLC Data Collection', 'python tools/data_collector.py 60minute', '0 * * * *', true)
+    ('market_data_day', 'Daily OHLC Data Collection', 'python data_collector.py day', '30 17 * * *', true),
+    ('market_data_60m', 'Hourly OHLC Data Collection', 'python data_collector.py 60minute', '0 * * * *', true)
 ON CONFLICT (name) DO NOTHING;

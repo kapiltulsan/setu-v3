@@ -41,6 +41,22 @@ logger = logging.getLogger("setu_scheduler")
 def get_db_connection():
     return psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
 
+def cleanup_zombies():
+    """Marks dead jobs as CRASHED on startup."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # We can use the PL/pgSQL function we defined, or just raw SQL
+            cur.execute("SELECT sys.cleanup_zombie_jobs();")
+            count = cur.fetchone()[0]
+        conn.commit()
+        if count > 0:
+            logger.warning(f"⚠️ Cleaned up {count} zombie jobs from previous crash.")
+    except Exception as e:
+        logger.error(f"Zombie cleanup failed: {e}")
+    finally:
+        conn.close()
+
 def log_job_start(job_name):
     """Log job start to DB."""
     conn = get_db_connection()
@@ -60,7 +76,7 @@ def log_job_start(job_name):
     finally:
         if conn: conn.close()
 
-def log_job_end(history_id, status, details, log_path=None, duration_seconds=0):
+def log_job_end(history_id, status, details, log_path=None, duration_seconds=0, output_summary=None):
     """Log job end to DB."""
     if not history_id:
         return
@@ -73,9 +89,10 @@ def log_job_end(history_id, status, details, log_path=None, duration_seconds=0):
                     status = %s, 
                     details = %s,
                     log_path = %s,
-                    duration_seconds = %s
+                    duration_seconds = %s,
+                    output_summary = %s
                 WHERE id = %s
-            """, (status, details, log_path, duration_seconds, history_id))
+            """, (status, details, log_path, duration_seconds, output_summary, history_id))
         conn.commit()
     except Exception as e:
         logger.error(f"Failed to log end for history_id {history_id}: {e}")
@@ -85,7 +102,6 @@ def log_job_end(history_id, status, details, log_path=None, duration_seconds=0):
 def run_job_wrapper(job_row):
     """
     Wrapper to execute the actual command.
-    Can be called by Scheduler OR API (for Run Now).
     """
     job_name = job_row['name']
     logger.info(f"🚀 Starting Job: {job_name}")
@@ -106,26 +122,45 @@ def run_job_wrapper(job_row):
     status = "FAILURE"
     error_msg = ""
     process = None
+    output_summary = ""
     
     try:
         cmd = job_row['command']
         
+        # 3. Prepare Environment (Context Passing)
+        env = os.environ.copy()
+        env['SETU_JOB_HISTORY_ID'] = str(history_id)
+        
         with open(log_path, 'w') as log_file:
             log_file.write(f"--- Execution Started at {datetime.datetime.now(IST)} ---\n")
             log_file.write(f"Command: {cmd}\n")
+            log_file.write(f"Context ID: {history_id}\n")
             log_file.flush()
             
             # Run process
             process = subprocess.Popen(
                 cmd, 
                 shell=True, 
-                stdout=log_file, 
+                stdout=subprocess.PIPE,  # Pipe stdout to capture it
                 stderr=subprocess.STDOUT, # Merge stderr to stdout
-                cwd=os.getcwd() # Run from project root
+                cwd=os.getcwd(), # Run from project root
+                env=env,
+                text=True # Decode as text
             )
             
+            # Reads stdout in real-time and writes to file
+            captured_lines = []
+            for line in process.stdout:
+                log_file.write(line)
+                log_file.flush()
+                # Keep last 20 lines for summary
+                captured_lines.append(line)
+                if len(captured_lines) > 20: 
+                    captured_lines.pop(0)
+
             exit_code = process.wait(timeout=job_row.get('timeout_sec', 3600))
-            
+            output_summary = "".join(captured_lines)[-1000:] # Last 1000 chars
+
             log_file.write(f"\n--- Execution Finished at {datetime.datetime.now(IST)} ---\n")
             log_file.write(f"Exit Code: {exit_code}\n")
         
@@ -147,13 +182,14 @@ def run_job_wrapper(job_row):
     except Exception as e:
         status = "FAILURE"
         error_msg = f"Exception: {str(e)}"
+        output_summary = traceback.format_exc()[-1000:]
         with open(log_path, 'a') as f:
             f.write(f"\n\nCRITICAL EXCEPTION: {traceback.format_exc()}\n")
     
     duration = time.time() - start_time
     
     # 4. Log End to DB
-    log_job_end(history_id, status, error_msg, log_path, duration)
+    log_job_end(history_id, status, error_msg, log_path, duration, output_summary)
 
     logger.info(f"🏁 Finished Job: {job_name} | Status: {status} | Duration: {duration:.2f}s")
     
@@ -227,6 +263,9 @@ class SchedulerService:
     def run(self):
         self.running = True
         
+        # Cleanup Zombie Jobs on Start
+        cleanup_zombies()
+        
         # Start Heartbeat Thread
         t = threading.Thread(target=self.heartbeat, daemon=True)
         t.start()
@@ -242,7 +281,7 @@ class SchedulerService:
             while self.running:
                 # Reload every 5 mins
                 time.sleep(300)
-                # self.load_jobs() # Uncomment if desired
+                self.load_jobs() 
         except (KeyboardInterrupt, SystemExit):
             self.stop()
             
@@ -262,3 +301,4 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, signal_handler)
     
     service.run()
+

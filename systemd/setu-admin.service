@@ -5,7 +5,7 @@ After=network.target postgresql.service
 User=pi50001_admin
 WorkingDirectory=/home/pi50001_admin/SetuV3
 ExecStart=/home/pi50001_admin/SetuV3/venv/bin/python app.py
-Environment="PATH=/home/pi50001_admin/setu-v3/venv/bin"
+Environment="PATH=/home/pi50001_admin/SetuV3/venv/bin"
 Restart=always
 [Install]
 WantedBy=multi-user.target

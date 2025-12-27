@@ -3,226 +3,363 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setu V3 - Scheduler</title>
+    <title>Mission Control - Scheduler</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bg: #121212;
-            --card: #1e1e1e;
-            --text: #e0e0e0;
-            --muted: #888;
-            --border: #333;
-            --green: #03dac6;
-            --red: #cf6679;
-            --blue: #64b5f6;
-            --orange: #ffb74d;
+            --bg: #09090b;
+            --card: #18181b;
+            --hover: #27272a;
+            --border: #3f3f46;
+            --primary: #3b82f6;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --text: #e4e4e7;
+            --muted: #a1a1aa;
         }
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-family: 'Inter', sans-serif;
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
-            padding: 20px;
+            padding: 24px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
         }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .header {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 25px;
+
+        /* --- Header --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
         }
-        .header h1 { margin: 0; font-size: 1.6rem; }
+        h1 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; }
+        .subtitle { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+        
         .btn {
-            padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;
-            font-weight: 600; text-decoration: none; color: #000; transition: opacity 0.2s;
+            background: var(--card); border: 1px solid var(--border); color: var(--text);
+            padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+            display: inline-flex; align-items: center; gap: 8px; font-weight: 600;
+            transition: all 0.2s; text-decoration: none;
         }
-        .btn:hover { opacity: 0.9; }
-        .btn-primary { background: var(--blue); }
-        .btn-success { background: var(--green); }
-        .btn-danger { background: var(--red); color: #fff; }
+        .btn:hover { background: var(--hover); border-color: var(--muted); }
+        .btn-primary { background: var(--primary); color: #fff; border: none; }
+        .btn-primary:hover { opacity: 0.9; background: var(--primary); }
+        .btn-danger { color: var(--danger); border-color: rgba(239, 68, 68, 0.3); }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.1); }
         
-        /* Table Styles */
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); }
-        th { color: var(--muted); font-size: 0.9rem; text-transform: uppercase; }
+        /* --- Stats Grid --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px;
+            display: flex; flex-direction: column;
+        }
+        .stat-label { color: var(--muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
+        .stat-value { font-size: 1.8rem; font-weight: 700; margin-top: 8px; }
+        .stat-icon { float: right; opacity: 0.2; }
+
+        /* --- Main Layout: Job List (Top) + Unified Logs (Bottom) --- */
+        .main-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            flex: 1; /* Fill remaining height */
+            min-height: 0; /* Important for scroll */
+        }
+
+        /* Job List Section */
+        .section-jobs {
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            display: flex; flex-direction: column;
+            max-height: 40%;
+            overflow: hidden;
+        }
+        .panel-header {
+            padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2);
+            display: flex; justify-content: space-between; align-items: center; font-weight: 600;
+        }
+
+        .job-table-container { overflow-y: auto; flex: 1; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        th { background: rgba(0,0,0,0.3); color: var(--muted); position: sticky; top: 0; backdrop-filter: blur(4px); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+
+        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        .status-success { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        .status-failure { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+        .status-running { background: var(--primary); box-shadow: 0 0 8px var(--primary); animation: pulse 1.5s infinite; }
+        .status-disabled { background: var(--muted); }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* Unified Log Viewer (Split Screen) */
+        .section-logs {
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            display: flex;
+            flex: 1; /* Take remaining space */
+            min-height: 400px;
+            overflow: hidden;
+        }
         
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
-        .badge.RUNNING { background: rgba(3, 218, 198, 0.2); color: var(--green); }
-        .badge.SUCCESS { background: rgba(3, 218, 198, 0.1); color: var(--green); border: 1px solid var(--green); }
-        .badge.FAILURE { background: rgba(207, 102, 121, 0.1); color: var(--red); border: 1px solid var(--red); }
-        .badge.TIMEOUT { background: rgba(255, 183, 77, 0.1); color: var(--orange); border: 1px solid var(--orange); }
+        .log-sidebar {
+            width: 320px; border-right: 1px solid var(--border); display: flex; flex-direction: column;
+        }
+        .log-list { overflow-y: auto; flex: 1; }
+        .log-item {
+            padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer;
+            transition: background 0.2s;
+        }
+        .log-item:hover { background: var(--hover); }
+        .log-item.active { background: rgba(59, 130, 246, 0.1); border-left: 3px solid var(--primary); }
         
-        /* Modal */
-        .modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); z-index: 1000;
+        .log-content-pane { flex: 1; display: flex; flex-direction: column; background: #000; }
+        .log-actions {
+            padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--card);
+            display: flex; justify-content: space-between; align-items: center;
         }
-        .modal-content {
-            background: var(--card); margin: 5% auto; padding: 20px; width: 80%; max-width: 900px;
-            border-radius: 8px; border: 1px solid var(--border); height: 80vh; display: flex; flex-direction: column;
+        
+        #log-viewer {
+            flex: 1; padding: 16px; overflow-y: auto; font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem; color: #d1d5db; white-space: pre-wrap; line-height: 1.5;
         }
-        .log-view {
-            flex-grow: 1; background: #000; color: #ccc; padding: 15px; overflow-y: scroll;
-            font-family: monospace; white-space: pre-wrap; margin: 15px 0; border: 1px solid #333;
-        }
+
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+        .badge.SUCCESS { background: rgba(34, 197, 94, 0.1); color: var(--success); }
+        .badge.FAILURE { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div>
-                <h1>Platform Scheduler</h1>
-                <small>Setu V3 Background Job Management</small>
-            </div>
-            <a href="/" class="btn" style="background: #333; color: #fff;">&larr; Back to Dashboard</a>
-        </div>
 
-        <!-- 1. Running Jobs / Status -->
-        <div class="card" style="margin-bottom: 30px; background: var(--card); padding: 20px; border-radius: 8px; border: 1px solid var(--border);">
-             <div style="display: flex; justify-content: space-between;">
-                <h3>Scheduled Jobs</h3>
-                <button onclick="loadData()" class="btn" style="background: #333; color: #fff; font-size: 0.8rem;">Refresh</button>
-             </div>
-             <table id="jobs-table">
-                 <thead>
-                     <tr>
-                         <th>Job Name</th>
-                         <th>Cron</th>
-                         <th>Status</th>
-                         <th>Last Run</th>
-                         <th>Duration</th>
-                         <th>Actions</th>
-                     </tr>
-                 </thead>
-                 <tbody>
-                     <!-- JS Populated -->
-                 </tbody>
-             </table>
+    <header>
+        <div>
+            <h1>Task Scheduler <span style="font-weight: 300; opacity: 0.5;">// Mission Control</span></h1>
+            <div class="subtitle">Platform V3 - Job Orchestration Node 1</div>
         </div>
+        <div>
+            <a href="/" class="btn"><i class="fas fa-arrow-left"></i> Dashboard</a>
+            <button onclick="refreshAll()" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Refresh System</button>
+        </div>
+    </header>
 
-        <!-- 2. Execution History -->
-        <div class="card" style="background: var(--card); padding: 20px; border-radius: 8px; border: 1px solid var(--border);">
-            <h3>Recent Execution History</h3>
-            <table id="history-table">
-                <thead>
-                    <tr>
-                         <th>ID</th>
-                         <th>Job Name</th>
-                         <th>Start Time</th>
-                         <th>Status</th>
-                         <th>Duration</th>
-                         <th>Message</th>
-                         <th>Logs</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <span class="stat-label">System Status</span>
+            <div class="stat-value" style="color: var(--success);">ONLINE <i class="fas fa-check-circle"></i></div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Jobs Enabled</span>
+            <div class="stat-value" id="stats-enabled">-</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Last 24h Failures</span>
+            <div class="stat-value" id="stats-failures" style="color: var(--danger);">-</div>
         </div>
     </div>
 
-    <!-- Log Modal -->
-    <div id="log-modal" class="modal">
-        <div class="modal-content">
-            <div style="display: flex; justify-content: space-between;">
-                <h3 style="margin: 0;">Log Viewer</h3>
-                <button onclick="closeModal()" style="background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer;">&times;</button>
+    <div class="main-layout">
+        
+        <!-- Job Table -->
+        <div class="section-jobs">
+            <div class="panel-header">
+                <span><i class="fas fa-tasks"></i> Active Schedules</span>
+                <span class="badge" style="background:#333; color:#aaa;">Auto-Sync ON</span>
             </div>
-            <div id="log-content" class="log-view">Loading...</div>
-            <div style="text-align: right;">
-                <a id="download-link" href="#" class="btn btn-primary">Download Log</a>
-                <button onclick="closeModal()" class="btn" style="background: #444; color: #fff;">Close</button>
+            <div class="job-table-container">
+                <table id="job-table">
+                    <thead>
+                        <tr>
+                            <th width="5%"></th>
+                            <th width="20%">Job Name</th>
+                            <th width="15%">Schedule</th>
+                            <th width="15%">Last Status</th>
+                            <th width="20%">Last Run</th>
+                            <th width="25%">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody><!-- JS --></tbody>
+                </table>
             </div>
         </div>
+
+        <!-- Split Log Viewer -->
+        <div class="section-logs">
+            <div class="log-sidebar">
+                <div class="panel-header" style="font-size: 0.85rem;">
+                    <i class="fas fa-history"></i> Execution History
+                </div>
+                <div class="log-list" id="history-list">
+                    <!-- JS -->
+                </div>
+            </div>
+            <div class="log-content-pane">
+                <div class="log-actions">
+                    <span id="current-log-title" style="font-weight: 600; color: var(--primary);">Select a run to view logs</span>
+                    <div>
+                        <button onclick="downloadLog()" id="btn-download" class="btn" style="padding: 4px 8px; font-size: 0.8rem;" disabled>
+                            <i class="fas fa-download"></i> Download
+                        </button>
+                    </div>
+                </div>
+                <div id="log-viewer">
+                    <div style="text-align: center; color: var(--muted); margin-top: 50px;">
+                        <i class="fas fa-terminal" style="font-size: 3rem; margin-bottom: 20px;"></i><br>
+                        Select a job execution from the left to view details.
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
-        async function loadData() {
-            // Load Jobs
+        let currentHistoryId = null;
+
+        async function refreshAll() {
+            await Promise.all([loadJobs(), loadHistory()]);
+        }
+
+        async function loadJobs() {
             try {
                 const res = await fetch('/api/scheduler/jobs');
                 const jobs = await res.json();
-                const tbody = document.querySelector('#jobs-table tbody');
+                
+                const tbody = document.querySelector('#job-table tbody');
                 tbody.innerHTML = '';
+                
+                let enabledCount = 0;
                 
                 jobs.forEach(job => {
-                    // Actions
-                    const btnClass = job.is_enabled ? 'btn-danger' : 'btn-success';
-                    const btnText = job.is_enabled ? 'Disable' : 'Enable';
-                    const toggleFn = `toggleJob(${job.id})`;
+                    if(job.is_enabled) enabledCount++;
+                    
+                    const statusClass = job.last_status === 'SUCCESS' ? 'status-success' : 
+                                      job.last_status === 'RUNNING' ? 'status-running' : 
+                                      job.last_status === 'FAILURE' ? 'status-failure' : 'status-disabled';
                     
                     tbody.innerHTML += `
-                        <tr style="opacity: ${job.is_enabled ? 1 : 0.5}">
-                            <td style="font-weight: bold;">${job.name}</td>
-                            <td><code>${job.schedule_cron}</code></td>
-                            <td><span class="badge ${job.last_status || 'UNKNOWN'}">${job.last_status || 'PENDING'}</span></td>
-                            <td>${job.last_run_end || '-'}</td>
-                            <td>${job.last_duration ? job.last_duration + 's' : '-'}</td>
-                            <td>
-                                <button onclick="runJob(${job.id})" class="btn btn-primary" style="padding: 4px 8px; font-size: 0.8rem;">Run Now</button>
-                                <button onclick="${toggleFn}" class="btn ${btnClass}" style="padding: 4px 8px; font-size: 0.8rem;">${btnText}</button>
-                            </td>
-                        </tr>
-                    `;
-                });
-            } catch(e) { console.error(e); }
-
-            // Load History
-            try {
-                const res = await fetch('/api/scheduler/history');
-                const history = await res.json();
-                const tbody = document.querySelector('#history-table tbody');
-                tbody.innerHTML = '';
-                
-                history.forEach(h => {
-                    tbody.innerHTML += `
                         <tr>
-                            <td style="color: #666;">#${h.id}</td>
-                            <td>${h.job_name}</td>
-                            <td>${h.start_time}</td>
-                            <td><span class="badge ${h.status}">${h.status}</span></td>
-                            <td>${h.duration_seconds || '-'}s</td>
-                            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${h.exit_message || '-'}</td>
+                            <td style="text-align: center;"><span class="status-dot ${statusClass}"></span></td>
+                            <td style="font-weight: 600;">${job.name}</td>
+                            <td style="font-family: monospace; color: var(--warning);">${job.schedule_cron}</td>
+                            <td><span class="badge ${job.last_status}">${job.last_status || 'PENDING'}</span></td>
+                            <td style="color: var(--muted);">${job.last_run_end || '-'}</td>
                             <td>
-                                <button onclick="viewLog(${h.id})" class="btn" style="background: #333; color: #fff; padding: 4px 8px; font-size: 0.8rem;">View Log</button>
+                                <button onclick="runJob(${job.id})" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.75rem;">
+                                    <i class="fas fa-play"></i> Run
+                                </button>
+                                <button onclick="toggleJob(${job.id})" class="btn" style="padding: 4px 10px; font-size: 0.75rem;">
+                                    ${job.is_enabled ? 'Disable' : 'Enable'}
+                                </button>
                             </td>
                         </tr>
                     `;
                 });
-            } catch(e) { console.error(e); }
+                
+                document.getElementById('stats-enabled').innerText = enabledCount;
+
+            } catch(e) { console.error("Job Load Err", e); }
         }
 
-        async function toggleJob(id) {
-            if(!confirm('Change job status?')) return;
-            await fetch(`/api/scheduler/jobs/${id}/toggle`, { method: 'POST' });
-            loadData();
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/scheduler/history?limit=25');
+                const history = await res.json();
+                
+                const list = document.getElementById('history-list');
+                list.innerHTML = '';
+                
+                let failureCount = 0;
+                // Simple 24h failure check (approx)
+                const yesterday = new Date(Date.now() - 86400000);
+
+                history.forEach(h => {
+                    const date = new Date(h.start_time);
+                    if(h.status === 'FAILURE' && date > yesterday) failureCount++;
+                    
+                    const el = document.createElement('div');
+                    el.className = 'log-item';
+                    el.onclick = () => selectLog(h.id, h.job_name, el);
+                    el.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                            <strong style="font-size: 0.9rem;">${h.job_name}</strong>
+                            <span class="badge ${h.status}">${h.status}</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--muted);">
+                            <i class="far fa-clock"></i> ${new Date(h.start_time).toLocaleString()} 
+                            ${h.duration_seconds ? `(${h.duration_seconds}s)` : ''}
+                        </div>
+                    `;
+                    list.appendChild(el);
+                });
+                
+                document.getElementById('stats-failures').innerText = failureCount;
+                
+            } catch(e) { console.error("History Load Err", e); }
         }
 
-        async function runJob(id) {
-            if(!confirm('Run this job immediately?')) return;
-            const res = await fetch(`/api/scheduler/jobs/${id}/run`, { method: 'POST' });
-            const data = await res.json();
-            alert(data.message);
-            loadData();
-        }
-        
-        async function viewLog(id) {
-            document.getElementById('log-modal').style.display = 'block';
-            document.getElementById('log-content').innerText = 'Loading log file...';
-            document.getElementById('download-link').href = `/api/scheduler/logs/${id}/download`;
+        async function selectLog(id, name, el) {
+            // Highlight
+            document.querySelectorAll('.log-item').forEach(i => i.classList.remove('active'));
+            el.classList.add('active');
+            
+            currentHistoryId = id;
+            document.getElementById('current-log-title').innerText = `Viewing Log: ${name} (#${id})`;
+            document.getElementById('btn-download').disabled = false;
+            
+            const viewer = document.getElementById('log-viewer');
+            viewer.innerHTML = '<span style="color: var(--muted);">Loading content...</span>';
             
             try {
                 const res = await fetch(`/api/scheduler/logs/${id}/view`);
                 const data = await res.json();
-                document.getElementById('log-content').innerText = data.content || data.error;
+                
+                if(data.error) {
+                    viewer.innerHTML = `<span style="color: var(--danger);">${data.error}</span>`;
+                } else {
+                    viewer.innerText = data.content;
+                    if(data.is_partial) {
+                         viewer.innerHTML = `<div style="background: var(--warning); color: #000; padding: 4px; font-weight: bold;">⚠️ Showing Database Summary (File Missing)</div>` + viewer.innerHTML;
+                    }
+                }
             } catch(e) {
-                document.getElementById('log-content').innerText = 'Error loading log.';
+                viewer.innerHTML = `<span style="color: var(--danger);">Failed to load log.</span>`;
             }
         }
         
-        function closeModal() {
-            document.getElementById('log-modal').style.display = 'none';
+        function downloadLog() {
+            if(currentHistoryId) window.location.href = `/api/scheduler/logs/${currentHistoryId}/download`;
+        }
+
+        async function runJob(id) {
+            if(!confirm("Are you sure you want to FORCE RUN this job?")) return;
+            // Optimistic Update
+            document.getElementById('log-viewer').innerHTML += '\nCommand sent...';
+            await fetch(`/api/scheduler/jobs/${id}/run`, { method: 'POST' });
+            setTimeout(refreshAll, 1000);
+        }
+
+        async function toggleJob(id) {
+            if(!confirm("Toggle enabled status?")) return;
+            await fetch(`/api/scheduler/jobs/${id}/toggle`, { method: 'POST' });
+            refreshAll();
         }
 
         // Init
-        loadData();
-        setInterval(loadData, 10000); // 10s auto refresh
+        refreshAll();
+        setInterval(refreshAll, 10000);
     </script>
 </body>
 </html>
