@@ -107,64 +107,109 @@ def process_symbol(kite_session, pool, symbol, token, timeframe, table_suffix):
     """
     Processes a single symbol using a shared Kite session and a DB connection from the pool.
     This function is designed to be run in a separate thread.
+    Includes Self-Healing Token Integrity Check.
     """
     conn = None
-    try:
-        # Get a connection from the pool; ensure it's returned with 'finally'.
-        conn = pool.getconn()
-        with conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                max_days = BACKFILL_RULES.get(timeframe, 365)
-                buffer_days = BUFFER_RULES.get(timeframe)
+    max_retries = 1
+    
+    # Attempt loop for Retry (Healing)
+    for attempt in range(max_retries + 1):
+        try:
+            # Get a connection from the pool; ensure it's returned with 'finally'.
+            conn = pool.getconn()
+            
+            # --- PRE-CHECK: Validate Token against DB (Efficiency Check) ---
+            # If we are retrying, we *know* we need a fresh token.
+            current_token = token
+            if attempt > 0:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT instrument_token FROM ref.symbol WHERE trading_symbol = %s", (symbol,))
+                    res = cur.fetchone()
+                    if res and res[0] != token:
+                        logger.log("warning", "Token Healed (Pre-fetch)", symbol=symbol, old=token, new=res[0])
+                        current_token = res[0]
+                    else:
+                        # No new token available? Fail.
+                        pass
+        
+            with conn: # Transcation block
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    max_days = BACKFILL_RULES.get(timeframe, 365)
+                    buffer_days = BUFFER_RULES.get(timeframe)
 
-                query_last = GET_LAST_CANDLE_SQL_TEMPLATE.format(suffix=table_suffix)
-                cur.execute(query_last, (symbol,))
-                result = cur.fetchone()
-                last_candle = result['last_candle'] if result and 'last_candle' in result else None
+                    query_last = GET_LAST_CANDLE_SQL_TEMPLATE.format(suffix=table_suffix)
+                    cur.execute(query_last, (symbol,))
+                    result = cur.fetchone()
+                    last_candle = result['last_candle'] if result and 'last_candle' in result else None
+                    
+                    # --- FIX: Ensure last_candle is DateTime, not Date ---
+                    if last_candle and isinstance(last_candle, datetime.date) and not isinstance(last_candle, datetime.datetime):
+                        last_candle = datetime.datetime.combine(last_candle, datetime.time.min).replace(tzinfo=datetime.timezone.utc)
+
+                    
+                    to_date = datetime.datetime.now().astimezone()
+                    
+                    if last_candle:
+                        from_date = last_candle - datetime.timedelta(days=buffer_days)
+                        mode = f"INCREMENTAL (Buffer -{buffer_days}d)"
+                    else:
+                        from_date = to_date - datetime.timedelta(days=max_days)
+                        mode = f"BACKFILL"
+
+                    # Fetch Data (Potential Failure Point)
+                    data = fetch_data_chunked(kite_session, current_token, from_date, to_date, timeframe)
+                    
+                    if not data:
+                        return {"status": "NO_DATA", "symbol": symbol, "msg": "No data returned"}
+
+                    rows = []
+                    for candle in data:
+                        rows.append((symbol, candle['date'], candle['open'], candle['high'], candle['low'], candle['close'], candle['volume']))
+
+                    if rows:
+                        query_upsert = UPSERT_SQL_TEMPLATE.format(suffix=table_suffix)
+                        execute_batch(cur, query_upsert, rows)
+                        return {"status": "SUCCESS", "symbol": symbol, "count": len(rows), "mode": mode}
+                    else:
+                        return {"status": "EMPTY", "symbol": symbol, "msg": "Data empty after parsing"}
+
+        except kite_exceptions.TokenException as e:
+            if attempt < max_retries:
+                logger.log("warning", "Token Invalid - Attempting Self-Heal", symbol=symbol, attempt=attempt+1)
+                # Release connection before next iteration to avoid hoarding
+                if conn:
+                    pool.putconn(conn)
+                    conn = None
                 
-                # --- FIX: Ensure last_candle is DateTime, not Date ---
-                if last_candle and isinstance(last_candle, datetime.date) and not isinstance(last_candle, datetime.datetime):
-                    last_candle = datetime.datetime.combine(last_candle, datetime.time.min).replace(tzinfo=datetime.timezone.utc)
-
+                # Fetch fresh token from DB for next attempt
+                fresh_conn = pool.getconn()
+                try:
+                    with fresh_conn.cursor() as cur:
+                        cur.execute("SELECT instrument_token FROM ref.symbol WHERE trading_symbol = %s", (symbol,))
+                        res = cur.fetchone()
+                        if res and res[0] != token:
+                             logger.log("info", "Found Fresh Token", symbol=symbol, old=token, new=res[0])
+                             token = res[0] # Update local variable for next loop
+                        else:
+                             # No fresh token found, useless to retry same token
+                             logger.log("error", "Self-Heal Failed: No new token in DB", symbol=symbol)
+                             raise e
+                finally:
+                    pool.putconn(fresh_conn)
                 
-                to_date = datetime.datetime.now().astimezone()
+                continue # Retry main loop
                 
-                if last_candle:
-                    from_date = last_candle - datetime.timedelta(days=buffer_days)
-                    mode = f"INCREMENTAL (Buffer -{buffer_days}d)"
-                else:
-                    from_date = to_date - datetime.timedelta(days=max_days)
-                    mode = f"BACKFILL"
-
-                data = fetch_data_chunked(kite_session, token, from_date, to_date, timeframe)
+            else:
+                # Retries exhausted
+                logger.log("error", "Token Integrity Failure - Session/Symbol Invalid", symbol=symbol, exc_info=True)
+                raise Exception("Token Invalid and Healing Failed") from e
                 
-                if not data:
-                    return {"status": "NO_DATA", "symbol": symbol, "msg": "No data returned"}
-
-                rows = []
-                for candle in data:
-                    rows.append((symbol, candle['date'], candle['open'], candle['high'], candle['low'], candle['close'], candle['volume']))
-
-                if rows:
-                    query_upsert = UPSERT_SQL_TEMPLATE.format(suffix=table_suffix)
-                    execute_batch(cur, query_upsert, rows)
-                    return {"status": "SUCCESS", "symbol": symbol, "count": len(rows), "mode": mode}
-                else:
-                    return {"status": "EMPTY", "symbol": symbol, "msg": "Data empty after parsing"}
-
-    except kite_exceptions.TokenException as e:
-        # This is a critical, non-recoverable error for this run.
-        # Re-raise to stop the entire collector job immediately.
-        logger.log("error", "Kite Token Exception - Session may have expired. Stopping job.", symbol=symbol, exc_info=True)
-        # notifier.send_notification removed to prevent spam. Exception will be caught by main loop.
-        raise Exception("Kite session invalid, stopping collector.") from e
-    except Exception as e:
-        # Re-raise the exception to be caught by the main thread's executor loop.
-        # This preserves the full stack trace for better debugging.
-        raise Exception(f"Failed processing '{symbol}': {e}") from e
-    finally:
-        if conn:
-            pool.putconn(conn)
+        except Exception as e:
+            # Re-raise to be caught by the main executor
+            raise Exception(f"Failed processing '{symbol}': {e}") from e
+        finally:
+            if conn:
+                pool.putconn(conn)
 
 def main():
     parser = argparse.ArgumentParser(description="Setu V3 OHLC Collector")
@@ -278,19 +323,25 @@ def main():
                 msg_lines.append(f"...and {len(failed_jobs) - 10} more.")
 
         priority = "high" if errors > 0 else "default"
+        title = "Data Collector Completed with Errors" if errors > 0 else "Data Collector Completed"
         notifier.send_notification(
-            "Data Collector Completed", 
+            title, 
             "\n".join(msg_lines),
             priority=priority
         )
+
+        if errors > 0:
+            sys.exit(1)
 
     except Exception as e:
         logger.log("error", "Critical Collector Failure", exc_info=True)
         print(f"🔥 CRITICAL FAIL: {e}")
         notifier.send_notification(
-            "Data Collector Failed", 
-            f"🔥 Critical Error in {args.timeframe} job:\n{str(e)}", 
-            priority="high"
+            subject="Data Collector Failed", 
+            details=["Critical Error in Data Collector", str(e)],
+            technicals={"Module": "data_collector.py", "Timeframe": args.timeframe},
+            severity="CRITICAL",
+            priority="critical"
         )
     finally:
         if 'db_pool' in locals() and db_pool:

@@ -1,122 +1,240 @@
 import os
+import time
+import queue
+import socket
+import threading
 import requests
 import datetime
-import datetime
-import socket
-import time
+import logging
+import uuid
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
 
-# Configuration
+# --- Configuration ---
 NOTIFIER_TYPE = os.getenv("NOTIFIER_TYPE", "telegram")
-NTFY_TOPIC = os.getenv("NTFY_TOPIC", "setu_alerts")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_IDS = os.getenv("TELEGRAM_CHAT_ID", "").split(",")
+TELEGRAM_CHAT_IDS = [x.strip() for x in os.getenv("TELEGRAM_CHAT_ID", "").split(",") if x.strip()]
 DASHBOARD_URL = os.getenv("DASHBOARD_URL")
-
 HOSTNAME = socket.gethostname()
+ENV = "PROD" if "prod" in HOSTNAME.lower() else "DEV"
 
-def send_notification(title, message, priority='default'):
+# --- Globals ---
+# Priority Queue: (priority_int, timestamp, payload)
+# Priority: Lower is higher priority. 10=CRITICAL, 30=HIGH, 50=DEFAULT, 80=LOW
+_notification_queue = queue.PriorityQueue()
+_worker_thread = None
+
+# Configure module logging
+logger = logging.getLogger("notifier")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    ch = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+def start_notifier_worker():
     """
-    Sends a notification via the configured channel (Telegram or NTFY).
+    Starts the background worker thread if not already running.
     """
-    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
-    # 1. Telegram Logic (Default)
-    if NOTIFIER_TYPE == "telegram":
-        if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_IDS:
-            print("❌ Telegram Check Failed: Missing Token or Chat ID")
-            return
+    global _worker_thread
+    if _worker_thread is None or not _worker_thread.is_alive():
+        _worker_thread = threading.Thread(target=_notification_worker, daemon=True, name="NotifierWorker")
+        _worker_thread.start()
+        logger.info("Notifier worker thread started.")
 
-        # Build richer HTML message
-        # Format:
-        # Title (Bold)
-        # Message
-        # [Link to Dashboard]
-        # Hostname | Time
-        
-        html_text = f"<b>{title}</b>\n{message}\n\n"
-        
-        if DASHBOARD_URL:
-            html_text += f"<a href='{DASHBOARD_URL}'>Login to Dashboard</a>\n"
-            
-        html_text += f"<i>{HOSTNAME} | {timestamp}</i>"
-
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-
-        for chat_id in TELEGRAM_CHAT_IDS:
-            chat_id = chat_id.strip()
-            if not chat_id: continue
-                
-            payload = {
-                "chat_id": chat_id,
-                "text": html_text,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True
-            }
-            
-            # Retry Logic (3 Attempts)
-            max_retries = 3
-            for attempt in range(1, max_retries + 1):
-                try:
-                    response = requests.post(url, json=payload, timeout=10) # increased timeout
-                    if response.status_code == 200:
-                        break # Success
-                    else:
-                        print(f"⚠️ Telegram Error (Attempt {attempt}): {response.text}")
-                except Exception as e:
-                    print(f"⚠️ Telegram Connection Failed (Attempt {attempt}): {e}")
-                
-                if attempt < max_retries:
-                    time.sleep(2 * attempt) # Exponential backoff: 2s, 4s...
-            else:
-                print(f"❌ Failed to send Telegram alert to {chat_id} after {max_retries} attempts.")
-
-    # 2. NTFY Logic (Fallback/Alternative)
-    elif NOTIFIER_TYPE == "ntfy":
-        headers = {
-            "Title": f"[{HOSTNAME}] {title}",
-            "Priority": "high" if priority == 'high' else "default",
-            "Tags": "warning,zerodha"
-        }
-        
-        full_message = f"{message}\n({timestamp})"
-        if DASHBOARD_URL:
-             # Ntfy supports 'Click' header for actions
-             headers["Click"] = DASHBOARD_URL
-             
+def _notification_worker():
+    """
+    Consumer loop that processes notifications from the queue.
+    """
+    while True:
         try:
-            requests.post(f"https://ntfy.sh/{NTFY_TOPIC}", 
-                          data=full_message.lower().encode('utf-8'), # ntfy likes utf-8 bytes
-                          headers=headers, timeout=5)
+            # Block until an item is available
+            priority, _, payload = _notification_queue.get()
+            
+            try:
+                _dispatch_telegram(payload)
+            except Exception as e:
+                logger.error(f"Failed to dispatch notification: {e}")
+            finally:
+                _notification_queue.task_done()
+            
+            # Governor: 1-second delay between messages to avoid rate limits
+            time.sleep(1)
+            
         except Exception as e:
-            print(f"❌ Failed to send NTFY alert: {e}")
+            logger.error(f"Critical error in notification worker: {e}")
+            time.sleep(5)  # Backoff on crash
+
+def _format_html_message(payload):
+    """
+    Formats the notification payload into the strict HTML hierarchy.
+    """
+    subject = payload.get("subject", "Notification")
+    details = payload.get("details", []) # List of strings
+    technicals = payload.get("technicals", {}) # Dict of key-value pairs
+    actionable = payload.get("actionable", []) # List of strings
+    severity = payload.get("severity", "INFO").upper()
+    exec_id = payload.get("exec_id", "N/A")
+
+    # [Header: Severity | Env]
+    icon = "🔴" if severity in ["CRITICAL", "ERROR"] else "🟡" if severity == "WARNING" else "🟢"
+    header = f"<b>{icon} {severity} | {ENV} | {HOSTNAME}</b>"
+    
+    # [Subject: Bold Summary]
+    body = f"\n\n<b>{subject}</b>"
+    
+    # [Details: Bulleted]
+    if details:
+        if isinstance(details, str):
+            details = [details]
+        body += "\n\n📋 <b>Details:</b>"
+        for item in details:
+            body += f"\n• {item}"
+            
+    # [Technicals: Monospaced Job/ExecID]
+    tech_lines = []
+    if exec_id and exec_id != "N/A":
+        tech_lines.append(f"ExecID: {exec_id}")
+    for k, v in technicals.items():
+        tech_lines.append(f"{k}: {v}")
+        
+    if tech_lines:
+        body += "\n\n🛠 <b>Technicals:</b>\n<pre>" + "\n".join(tech_lines) + "</pre>"
+
+    # [Closing: Actionable Steps]
+    if actionable:
+        if isinstance(actionable, str):
+            actionable = [actionable]
+        body += "\n\n🚀 <b>Action Required:</b>"
+        for step in actionable:
+            body += f"\n👉 {step}"
+
+    # [Deep Links: HTML Hyperlinks]
+    links = []
+    if DASHBOARD_URL:
+        links.append(f"<a href='{DASHBOARD_URL}'>Dashboard</a>")
+    # Add more relevant links if provided in payload?
+    
+    if links:
+        body += "\n\n🔗 " + " | ".join(links)
+        
+    # Timestamp footer
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    body += f"\n\n<i>{timestamp}</i>"
+
+    return body
+
+def _dispatch_telegram(payload):
+    """
+    Sends the formatted message to Telegram with retry logic.
+    """
+    if NOTIFIER_TYPE != "telegram":
+        logger.warning(f"Skipping dispatch: NOTIFIER_TYPE is {NOTIFIER_TYPE}")
+        return
+
+    if not TELEGRAM_BOT_TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN is missing")
+        return
+
+    message_html = _format_html_message(payload)
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+
+    for chat_id in TELEGRAM_CHAT_IDS:
+        data = {
+            "chat_id": chat_id,
+            "text": message_html,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }
+
+        # 3-tier exponential backoff
+        for attempt in range(1, 4):
+            try:
+                response = requests.post(url, json=data, timeout=10)
+                if response.status_code == 200:
+                    logger.info(f"Message sent to {chat_id}")
+                    break
+                else:
+                    logger.warning(f"Telegram failed (Attempt {attempt}): {response.text}")
+            except Exception as e:
+                logger.warning(f"Telegram connection error (Attempt {attempt}): {e}")
+            
+            if attempt < 3:
+                time.sleep(2 ** attempt) # 2s, 4s
+
+def send_notification(subject, details=None, technicals=None, actionable=None, severity="INFO", priority="default", exec_id=None):
+    """
+    Public API to enqueue a notification.
+    
+    Args:
+        subject (str): Bold summary of the event.
+        details (list/str): Detailed bullet points.
+        technicals (dict): Key-value pairs for monospaced technical info.
+        actionable (list/str): Actionable steps for the user.
+        severity (str): INFO, WARNING, ERROR, CRITICAL.
+        priority (str): 'critical', 'high', 'default', 'low'.
+        exec_id (str): UUID for tracing.
+    """
+    # Start worker on first call if needed
+    start_notifier_worker()
+
+    priority_map = {
+        "critical": 10,
+        "high": 30,
+        "default": 50,
+        "low": 80
+    }
+    prio_int = priority_map.get(priority.lower(), 50)
+    
+    # Support legacy simple calls where details might constitute the message
+    if details is None:
+        details = []
+    if technicals is None:
+        technicals = {}
+    if actionable is None:
+        actionable = []
+
+    payload = {
+        "subject": subject,
+        "details": details,
+        "technicals": technicals,
+        "actionable": actionable,
+        "severity": severity,
+        "exec_id": exec_id or str(uuid.uuid4())
+    }
+    
+    # Push to queue: (priority, timestamp, payload)
+    # Timestamp ensures FIFO for same priority
+    _notification_queue.put((prio_int, time.time(), payload))
+    logger.debug(f"Queued notification: {subject}")
 
 if __name__ == "__main__":
-    import argparse
+    # Test execution
+    print("🔔 Queuing test notifications...")
     
-    parser = argparse.ArgumentParser(description="Send notifications via configured channels (Telegram/NTFY)")
-    parser.add_argument("-t", "--title", required=True, help="Notification Title")
-    parser.add_argument("-m", "--message", required=True, help="Notification Message")
-    parser.add_argument("-p", "--priority", default="default", choices=["default", "high"], help="Priority (default/high)")
-    parser.add_argument("--type", help="Override notifier type (telegram/ntfy)")
+    # Start the worker explicitly for script execution
+    start_notifier_worker()
     
-    # If no arguments provided, likely being run manually for test
-    if len(os.sys.argv) == 1:
-        print("🔔 Sending Test Notification...")
-        send_notification(
-            "Test Alert 🚀", 
-            "This is a test notification from the Setu V3 system.",
-            priority="high"
-        )
-        print("✅ Done.")
-    else:
-        args = parser.parse_args()
-        
-        # Optional: Temporary override of notifier type if specified
-        if args.type:
-            NOTIFIER_TYPE = args.type
-            
-        send_notification(args.title, args.message, priority=args.priority)
-        print("✅ Notification sent (queued for async or sent synchronously).")
+    send_notification(
+        subject="Test Alert System",
+        details=["Testing the new asynchronous notifier.", "Verifying HTML formatting.", "Checking priority queue."],
+        technicals={"Module": "notifier.py", "QueueSize": "1"},
+        actionable=["Check Telegram", "Verify format"],
+        severity="INFO",
+        priority="high"
+    )
+    
+    send_notification(
+        subject="Critical Failure Simulation",
+        details="Simulating a critical error to test priority.",
+        severity="CRITICAL",
+        priority="critical" 
+    )
+
+    print("⏳ Waiting for worker to flush queue...")
+    # Wait for queue to be empty
+    _notification_queue.join()
+    print("✅ All notifications sent.")

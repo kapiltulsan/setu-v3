@@ -1,0 +1,13 @@
+Usage: python -m flask run [OPTIONS]
+Try 'python -m flask run --help' for help.
+
+Error: While importing 'app', an ImportError was raised:
+
+Traceback (most recent call last):
+  File "/home/pi50001_admin/SetuV3/venv/lib/python3.13/site-packages/flask/cli.py", line 245, in locate_app
+    __import__(module_name)
+    ~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/pi50001_admin/SetuV3/app.py", line 11, in <module>
+    from modules.logs import logs_bp, get_recent_logs
+ImportError: cannot import name 'get_recent_logs' from 'modules.logs' (/home/pi50001_admin/SetuV3/modules/logs.py)
+

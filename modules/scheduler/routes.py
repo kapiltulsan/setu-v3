@@ -1,28 +1,108 @@
 import os
 import threading
-from flask import Blueprint, jsonify, request, send_file, render_template
+import subprocess
+import json
+from flask import Blueprint, jsonify, request, render_template
 from psycopg2.extras import RealDictCursor
-from modules.scheduler.service import get_db_connection, run_job_wrapper, LOG_DIR
+from modules.scheduler.service import get_db_connection
 
 scheduler_bp = Blueprint('scheduler_bp', __name__)
 
 @scheduler_bp.route('/admin/scheduler')
-def scheduler_dashboard():
-    """Serve the Scheduler Management Page."""
-    return render_template('scheduler.html')
+@scheduler_bp.route('/admin/observability')
+def observability_dashboard():
+    """Serve the New Observability Dashboard."""
+    return render_template('observability.html')
 
-@scheduler_bp.route('/api/scheduler/status')
-def get_service_status():
-    """Get the heartbeat status of the scheduler service."""
+# --- System Health ---
+@scheduler_bp.route('/api/system/status')
+def get_system_status():
+    """Get the heartbeat status of all services."""
     conn = get_db_connection()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT * FROM sys.service_status WHERE service_name = 'setu-scheduler'")
-            status = cur.fetchone()
-        return jsonify(status or {"status": "UNKNOWN"})
+            cur.execute("SELECT * FROM sys.service_status ORDER BY service_name")
+            rows = cur.fetchall()
+            
+            # Add calculated status
+            results = []
+            for row in rows:
+                last_heartbeat = row['last_heartbeat']
+                status = "OFFLINE"
+                if last_heartbeat:
+                    # Calculate seconds ago
+                    import datetime
+                    # Ensure timezone awareness handling
+                    now = datetime.datetime.now(last_heartbeat.tzinfo)
+                    diff = (now - last_heartbeat).total_seconds()
+                    
+                    if diff < 70: # 60s + buffer
+                        status = "ONLINE"
+                    elif diff < 180:
+                        status = "LAGGING"
+                    else:
+                        status = "OFFLINE"
+                
+                results.append({
+                    "service": row['service_name'],
+                    "status": status,
+                    "last_beat": last_heartbeat.isoformat() if last_heartbeat else None,
+                    "info": row['info']
+                })
+                
+        return jsonify(results)
+    except Exception as e:
+         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
 
+# --- System Control ---
+@scheduler_bp.route('/api/system/action', methods=['POST'])
+def system_action():
+    """Perform system actions: refresh, restart."""
+    data = request.json
+    action = data.get('action')
+    service = data.get('service')
+    
+    conn = get_db_connection()
+    try:
+        if action == 'refresh':
+            # Trigger Global Refresh (Force Sync)
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO sys.job_triggers (job_name, triggered_by, status)
+                    VALUES ('SYSTEM_FORCE_SYNC', 'admin_ui', 'PENDING')
+                """)
+            conn.commit()
+            return jsonify({"status": "success", "message": "Global Refresh Triggered"})
+            
+        elif action == 'restart':
+            if not service:
+                return jsonify({"error": "Service name required"}), 400
+            
+            # Restart via systemctl (Requires privileges setup)
+            # Assuming 'sudo' is allowed without password for 'systemctl restart setu-*'
+            # Or we utilize a specific tool script.
+            # Using basic subprocess for now.
+            cmd = f"sudo systemctl restart {service}"
+            
+            # Safety check
+            allowed_services = ['setu-scheduler', 'setu-web', 'setu-notifier', 'nginx']
+            if service not in allowed_services:
+                 return jsonify({"error": "Service restart not allowed"}), 403
+
+            subprocess.Popen(cmd.split())
+            return jsonify({"status": "success", "message": f"Restart signal sent for {service}"})
+            
+        else:
+            return jsonify({"error": "Invalid action"}), 400
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+# Keep jobs API for legacy or if needed, but remove conflicting Logs API
 @scheduler_bp.route('/api/scheduler/jobs')
 def list_jobs():
     """List all jobs with their latest history status."""
@@ -35,10 +115,11 @@ def list_jobs():
                     j.*,
                     h.status as last_status,
                     h.end_time as last_run_end,
+                    h.pid as last_pid,
                     EXTRACT(EPOCH FROM (h.end_time - h.start_time)) as last_duration
                 FROM sys.scheduled_jobs j
                 LEFT JOIN LATERAL (
-                    SELECT status, start_time, end_time 
+                    SELECT status, start_time, end_time, pid
                     FROM sys.job_history 
                     WHERE job_name = j.name 
                     ORDER BY id DESC LIMIT 1
@@ -47,101 +128,5 @@ def list_jobs():
             """)
             jobs = cur.fetchall()
         return jsonify(jobs)
-    finally:
-        conn.close()
-
-@scheduler_bp.route('/api/scheduler/jobs/<int:job_id>/toggle', methods=['POST'])
-def toggle_job(job_id):
-    """Enable/Disable a job."""
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("UPDATE sys.scheduled_jobs SET is_enabled = NOT is_enabled WHERE id = %s RETURNING is_enabled", (job_id,))
-            new_state = cur.fetchone()[0]
-        conn.commit()
-        # Note: Scheduler service needs to reload to pick this up. 
-        # Ideally we send a signal, but for now we rely on the 5min poll or manual restart.
-        return jsonify({"success": True, "is_enabled": new_state})
-    finally:
-        conn.close()
-
-@scheduler_bp.route('/api/scheduler/jobs/<int:job_id>/run', methods=['POST'])
-def run_job_now(job_id):
-    """Manually trigger a job (Runs in a separate thread)."""
-    conn = get_db_connection()
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT * FROM sys.scheduled_jobs WHERE id = %s", (job_id,))
-            job = cur.fetchone()
-        
-        if not job:
-            return jsonify({"error": "Job not found"}), 404
-            
-        # Run in background thread to avoid blocking API
-        t = threading.Thread(target=run_job_wrapper, args=(job,), daemon=True)
-        t.start()
-        
-        return jsonify({"message": f"Job '{job['name']}' triggered successfully."})
-    finally:
-        conn.close()
-
-@scheduler_bp.route('/api/scheduler/history')
-def job_history():
-    """Get global job history."""
-    conn = get_db_connection()
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
-                SELECT h.*, j.name as job_name 
-                FROM sys.job_history h
-                JOIN sys.scheduled_jobs j ON h.job_name = j.name
-                ORDER BY h.id DESC LIMIT 50
-            """)
-            history = cur.fetchall()
-        return jsonify(history)
-    finally:
-        conn.close()
-
-@scheduler_bp.route('/api/scheduler/logs/<int:history_id>/view')
-def view_log(history_id):
-    """View log content."""
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT log_path FROM sys.job_history WHERE id = %s", (history_id,))
-            result = cur.fetchone()
-            
-        if not result or not result[0]:
-            return jsonify({"error": "Log not found"}), 404
-            
-        log_path = result[0]
-        if not os.path.exists(log_path):
-             return jsonify({"error": "Log file missing on disk"}), 404
-             
-        # Read last 20KB for safety
-        with open(log_path, 'r') as f:
-            content = f.read() 
-            
-        return jsonify({"content": content})
-    finally:
-        conn.close()
-
-@scheduler_bp.route('/api/scheduler/logs/<int:history_id>/download')
-def download_log(history_id):
-    """Download log file."""
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT log_path FROM sys.job_history WHERE id = %s", (history_id,))
-            result = cur.fetchone()
-            
-        if not result or not result[0]:
-            return jsonify({"error": "Log not found"}), 404
-            
-        log_path = result[0]
-        if not os.path.exists(log_path):
-             return jsonify({"error": "Log file missing on disk"}), 404
-             
-        return send_file(log_path, as_attachment=True)
     finally:
         conn.close()

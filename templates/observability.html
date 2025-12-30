@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setu V3 Mission Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-dot {
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-online {
+            background-color: #10b981;
+            box-shadow: 0 0 10px #10b981;
+        }
+
+        .status-lagging {
+            background-color: #f59e0b;
+            box-shadow: 0 0 10px #f59e0b;
+        }
+
+        .status-offline {
+            background-color: #ef4444;
+            box-shadow: 0 0 10px #ef4444;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" class="min-h-screen p-6">
+        {% raw %}
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold tracking-wider text-blue-400">SETU V3 <span
+                    class="text-white">OBSERVABILITY</span></h1>
+            <div class="flex gap-4">
+                <button @click="refreshSystem"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow transition">
+                    🔄 Global Refresh
+                </button>
+                <a href="/" class="glass px-4 py-2 rounded hover:bg-slate-700 transition">Back to Main</a>
+            </div>
+        </header>
+
+        <!-- System Health Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div v-for="service in services" :key="service.service"
+                class="glass p-4 rounded-xl flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold">{{ service.service }}</h3>
+                    <p class="text-xs text-gray-400">Last Beat: {{ formatTime(service.last_beat) }}</p>
+                </div>
+                <div class="flex flex-col items-end gap-2">
+                    <span :class="getStatusClass(service.status)" class="status-dot"></span>
+                    <button @click="restartService(service.service)"
+                        class="text-xs text-red-400 hover:text-red-300 underline">Restart</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Job Scheduler -->
+            <div class="lg:col-span-2 glass rounded-xl p-6">
+                <div class="flex justify-between mb-4">
+                    <h2 class="text-xl font-bold">Scheduler Status</h2>
+                    <span class="text-sm bg-slate-700 px-2 py-1 rounded">{{ jobs.length }} Jobs Configured</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-gray-400 border-b border-gray-700">
+                                <th class="p-2">Job Name</th>
+                                <th class="p-2">Schedule</th>
+                                <th class="p-2">Last Run</th>
+                                <th class="p-2">Status</th>
+                                <th class="p-2">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="job in jobs" :key="job.name"
+                                class="border-b border-gray-800 hover:bg-slate-800 transition">
+                                <td class="p-2 font-mono text-sm">
+                                    <button @click="openJobHistory(job.name)" class="text-blue-400 hover:underline">
+                                        {{ job.name }}
+                                    </button>
+                                </td>
+                                <td class="p-2 text-sm text-gray-400">{{ job.schedule }}</td>
+                                <td class="p-2 text-sm">{{ job.last_run || 'Never' }}</td>
+                                <td class="p-2">
+                                    <span
+                                        :class="{'text-green-400': job.status === 'SUCCESS', 'text-red-400': job.status === 'FAILURE', 'text-yellow-400': job.status === 'RUNNING'}"
+                                        class="font-bold text-xs">
+                                        {{ job.status }}
+                                    </span>
+                                </td>
+                                <td class="p-2">
+                                    <button @click="triggerJob(job.name)"
+                                        class="text-blue-400 hover:text-blue-300 text-sm">▶ Run Now</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Live Stick logs -->
+            <div class="glass rounded-xl p-6 flex flex-col h-[600px]">
+                <h2 class="text-xl font-bold mb-4">Live System Logs</h2>
+                <div class="flex-1 overflow-y-auto bg-slate-900 rounded p-4 font-mono text-xs text-green-400 leading-tight"
+                    id="log-container">
+                    <div v-for="(log, i) in liveLogs" :key="i" class="mb-1">
+                        <span class="text-gray-500">[{{ log.ts }}]</span>
+                        <span :class="{'text-red-500': log.lvl==='ERROR', 'text-yellow-500': log.lvl==='WARNING'}">{{
+                            log.lvl }}</span>:
+                        {{ log.msg }} <span class="text-gray-600">({{ log.mod }})</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Job History Modal -->
+        <div v-if="showJobHistoryModal"
+            class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
+            <div class="glass max-w-4xl w-full max-h-[90vh] flex flex-col rounded-xl overflow-hidden">
+                <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                    <h3 class="text-xl font-bold">History: {{ selectedJob }}</h3>
+                    <button @click="closeJobHistory" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+
+                <div class="p-4 overflow-y-auto flex-1">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-gray-400 border-b border-gray-700">
+                                <th class="p-2">Started At</th>
+                                <th class="p-2">Status</th>
+                                <th class="p-2">Duration</th>
+                                <th class="p-2">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="h in jobHistory" :key="h.id" class="border-b border-gray-800 hover:bg-slate-800">
+                                <td class="p-2 text-sm">{{ formatTime(h.start_time) }}</td>
+                                <td class="p-2">
+                                    <span
+                                        :class="{'text-green-400': h.status === 'SUCCESS', 'text-red-400': h.status === 'FAILURE'}"
+                                        class="font-bold text-xs">
+                                        {{ h.status }}
+                                    </span>
+                                </td>
+                                <td class="p-2 text-sm">{{ h.duration_seconds }}s</td>
+                                <td class="p-2">
+                                    <a :href="`/api/scheduler/logs/${h.id}/download`"
+                                        class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-xs transition">
+                                        ⬇ Log
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div v-if="jobHistory.length === 0" class="text-center p-8 text-gray-500">
+                        No history found (or logs cleared).
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endraw %}
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const services = ref([]);
+                const jobs = ref([]);
+
+                const liveLogs = ref([]);
+                const showJobHistoryModal = ref(false);
+                const selectedJob = ref('');
+                const jobHistory = ref([]);
+
+                const fetchStatus = async () => {
+                    try {
+                        const res = await fetch('/api/system/status');
+                        if (!res.ok) throw new Error(res.statusText);
+                        services.value = await res.json();
+                    } catch (e) { console.error(e); }
+                };
+
+                const fetchJobs = async () => {
+                    try {
+                        const res = await fetch('/api/jobs/latest');
+                        jobs.value = await res.json();
+                    } catch (e) { console.error(e); }
+                };
+
+                const restartService = async (name) => {
+                    if (!confirm(`Restart ${name}?`)) return;
+                    await fetch('/api/system/action', {
+                        method: 'POST', body: JSON.stringify({ action: 'restart', service: name }),
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    alert('Restart signal sent.');
+                };
+
+                const refreshSystem = async () => {
+                    await fetch('/api/system/action', {
+                        method: 'POST', body: JSON.stringify({ action: 'refresh' }),
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    alert('Global Refresh Triggered.');
+                    fetchStatus();
+                    fetchJobs();
+                };
+
+                const triggerJob = async (name) => {
+                    await fetch('/api/jobs/trigger', {
+                        method: 'POST', body: JSON.stringify({ job_name: name }),
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    alert(`Job ${name} queued.`);
+                };
+
+                const getStatusClass = (status) => {
+                    if (status === 'ONLINE') return 'status-online';
+                    if (status === 'LAGGING') return 'status-lagging';
+                    return 'status-offline';
+                };
+
+                const formatTime = (iso) => {
+                    if (!iso) return 'N/A';
+                    return new Date(iso).toLocaleString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: true
+                    });
+                };
+
+                const pollLogs = async () => {
+                    try {
+                        const res = await fetch('/api/scheduler/history?limit=10');
+                        const data = await res.json();
+                        liveLogs.value = data.map(d => ({
+                            ts: new Date(d.start_time).toLocaleTimeString(),
+                            lvl: d.status === 'FAILURE' ? 'ERROR' : 'INFO',
+                            mod: d.job_name,
+                            msg: d.output_summary ? d.output_summary.substring(0, 50) + '...' : d.status
+                        }));
+                    } catch (e) { }
+                };
+
+                const openJobHistory = async (jobName) => {
+                    selectedJob.value = jobName;
+                    showJobHistoryModal.value = true;
+                    jobHistory.value = []; // Reset
+                    try {
+                        const res = await fetch(`/api/scheduler/history?limit=10&job_name=${jobName}`);
+                        jobHistory.value = await res.json();
+                    } catch (e) { console.error(e); }
+                };
+
+                const closeJobHistory = () => {
+                    showJobHistoryModal.value = false;
+                    selectedJob.value = '';
+                };
+
+                onMounted(() => {
+                    fetchStatus();
+                    fetchJobs();
+                    pollLogs();
+                    setInterval(() => {
+                        fetchStatus();
+                        fetchJobs();
+                        pollLogs();
+                    }, 5000);
+                });
+
+                return {
+
+                    services, jobs, liveLogs,
+                    showJobHistoryModal, selectedJob, jobHistory,
+                    restartService, refreshSystem, triggerJob,
+                    openJobHistory, closeJobHistory,
+                    getStatusClass, formatTime
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>

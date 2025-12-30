@@ -6,9 +6,9 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 
 # Import Modules
+from modules.logs import logs_bp, get_recent_logs
 from modules.auth import auth_bp, get_token_status, get_kite_url
 from modules.charts import charts_bp
-from modules.logs import logs_bp, get_recent_logs
 from modules.jobs import jobs_bp
 from modules.scheduler import scheduler_bp
 

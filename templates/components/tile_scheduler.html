@@ -1,16 +1,19 @@
 <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 12px; margin-bottom: 15px;">
+    <div
+        style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 12px; margin-bottom: 15px;">
         <h2 style="border: none; margin: 0; padding: 0; margin-bottom: 0;">⏰ Scheduler</h2>
         <div style="display: flex; gap: 10px; align-items: center;">
             <span id="sched-status-badge" class="badge">Checking...</span>
-            <a href="/admin/scheduler" style="padding: 4px 12px; background: #1e1e1e; color: #64b5f6; border: 1px solid #64b5f6; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; text-decoration: none; transition: all 0.2s;">
+            <a href="/admin/scheduler"
+                style="padding: 4px 12px; background: #1e1e1e; color: #64b5f6; border: 1px solid #64b5f6; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; text-decoration: none; transition: all 0.2s;">
                 Manage
             </a>
         </div>
     </div>
-    
-    <div id="scheduler-summary" style="display: flex; flex-direction: column; gap: 12px; height: 300px; overflow-y: auto;">
-        
+
+    <div id="scheduler-summary"
+        style="display: flex; flex-direction: column; gap: 12px; height: 300px; overflow-y: auto;">
+
         <!-- Job List Container -->
         <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
             <thead>
@@ -21,7 +24,9 @@
                 </tr>
             </thead>
             <tbody id="sched-jobs-list">
-                <tr><td colspan="3" style="text-align: center; color: #555; padding-top: 20px;">Loading jobs...</td></tr>
+                <tr>
+                    <td colspan="3" style="text-align: center; color: #555; padding-top: 20px;">Loading jobs...</td>
+                </tr>
             </tbody>
         </table>
 
@@ -34,7 +39,7 @@
             // 1. Service Status
             const resStatus = await fetch('/api/scheduler/status');
             const statusData = await resStatus.json();
-            
+
             const badge = document.getElementById('sched-status-badge');
             if (statusData.status === 'RUNNING') {
                 badge.innerText = 'ACTIVE';
@@ -47,18 +52,18 @@
             // 2. Job List
             const resJobs = await fetch('/api/scheduler/jobs');
             const jobs = await resJobs.json();
-            
+
             const tbody = document.getElementById('sched-jobs-list');
-            if(jobs.length === 0) {
-                 tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #555; padding-top: 20px;">No jobs configured.</td></tr>';
-                 return;
+            if (jobs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #555; padding-top: 20px;">No jobs configured.</td></tr>';
+                return;
             }
 
             let html = '';
             jobs.forEach(job => {
                 let statusColor = '#888';
                 let statusText = job.last_status || 'PENDING';
-                
+
                 if (statusText === 'SUCCESS') statusColor = 'var(--green)';
                 else if (statusText === 'FAILURE') statusColor = 'var(--red)';
                 else if (statusText === 'RUNNING') statusColor = 'var(--orange)';
@@ -66,22 +71,35 @@
                 // Clean up schedule display
                 const schedule = job.cron_schedule ? job.cron_schedule : 'Manual';
 
+                // Lock Status
+                let lockStatus = '';
+                if (statusText === 'RUNNING' && job.last_pid) {
+                    lockStatus = `
+                        <div title="Click to copy kill command" 
+                             style="margin-top:2px; font-size: 0.75rem; color: #aaa; cursor: pointer; display: flex; align-items: center; justify-content: flex-end; gap: 4px;"
+                             onclick="navigator.clipboard.writeText('kill -9 ${job.last_pid}'); alert('Copied: kill -9 ${job.last_pid}'); event.stopPropagation();">
+                            <span>🔒 Locked (${job.last_pid})</span>
+                        </div>
+                    `;
+                }
+
                 html += `
                     <tr style="border-bottom: 1px solid #222;">
                         <td style="padding: 8px 0; font-weight: 500;">
                             ${job.name}
-                            <div style="font-size: 0.75rem; color: #555;">${job.type}</div>
+                            <div style="font-size: 0.75rem; color: #555;">${job.description || ''}</div>
                         </td>
-                        <td style="padding: 8px 0; color: #aaa; font-family: monospace;">${schedule}</td>
+                        <td style="padding: 8px 0; color: #aaa; font-family: monospace;">${job.schedule_cron}</td>
                         <td style="padding: 8px 0; text-align: right;">
                             <span style="color: ${statusColor}; font-weight: bold; font-size: 0.8rem;">${statusText}</span>
+                            ${lockStatus}
                             <div style="font-size: 0.7rem; color: #555;">${job.last_run_end ? new Date(job.last_run_end).toLocaleTimeString() : '-'}</div>
                         </td>
                     </tr>
                 `;
             });
             tbody.innerHTML = html;
-            
+
         } catch (e) {
             console.error(e);
             document.getElementById('sched-status-badge').innerText = 'ERR';
