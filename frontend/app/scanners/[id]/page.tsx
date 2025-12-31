@@ -105,11 +105,11 @@ export default function ScannerDetailsPage() {
                     <h3 className="font-semibold text-gray-800">Strategy Configuration</h3>
                     {data.config.last_run_stats && (
                         <div className="flex items-center gap-2 text-xs font-mono bg-white px-3 py-1 rounded border border-gray-200 shadow-sm">
-                            <span className="text-blue-600 font-bold" title="Universe Size">{data.config.last_run_stats.universe ?? '-'}</span>
+                            <span className="text-blue-600 font-bold" title="Universe Size">{data.config.last_run_stats?.universe ?? '-'}</span>
                             <span className="text-gray-400">→</span>
-                            <span className="text-indigo-600 font-bold" title="After Primary Filter">{data.config.last_run_stats.primary ?? '-'}</span>
+                            <span className="text-indigo-600 font-bold" title="After Primary Filter">{data.config.last_run_stats?.primary ?? '-'}</span>
                             <span className="text-gray-400">→</span>
-                            <span className="text-purple-600 font-bold" title="Final Matches">{data.config.last_run_stats.refiner ?? '-'}</span>
+                            <span className="text-purple-600 font-bold" title="Final Matches">{data.config.last_run_stats?.refiner ?? '-'}</span>
                         </div>
                     )}
                 </div>
