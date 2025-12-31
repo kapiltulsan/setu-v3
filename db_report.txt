@@ -1,0 +1,18 @@
+✅ Connected to setu_dev on localhost
+
+--- Schemas ---
+Found schemas: ['sys', 'trading', 'ohlc', 'ref']
+
+--- Tables ---
+✅ trading.trades
+✅ trading.portfolio
+✅ trading.orders
+✅ trading.positions
+✅ sys.job_history
+✅ sys.scheduled_jobs
+✅ ohlc.candles_60m
+
+--- Checking sys.job_history Structure ---
+Columns: ['id', 'job_name', 'start_time', 'end_time', 'status', 'details', 'created_at', 'output_summary', 'pid']
+   ⚠️  Matches 002 (Old style)
+   ✅ Matches 011 (Has PID tracking)
