@@ -173,7 +173,7 @@ def process_symbol(kite_session, pool, symbol, token, timeframe, table_suffix):
                     else:
                         return {"status": "EMPTY", "symbol": symbol, "msg": "Data empty after parsing"}
 
-        except kite_exceptions.TokenException as e:
+        except (kite_exceptions.TokenException, kite_exceptions.InputException) as e:
             if attempt < max_retries:
                 logger.log("warning", "Token Invalid - Attempting Self-Heal", symbol=symbol, attempt=attempt+1)
                 # Release connection before next iteration to avoid hoarding
@@ -317,7 +317,7 @@ def main():
             msg_lines.append("\n⚠️ Failed Symbols:")
             # List top 10 failures
             for sym, reason in failed_jobs[:10]:
-                msg_lines.append(f"- {sym}: {reason[:50]}...") # Truncate reason
+                msg_lines.append(f"- {sym}: {reason[:200]}...") # Truncate reason
             
             if len(failed_jobs) > 10:
                 msg_lines.append(f"...and {len(failed_jobs) - 10} more.")

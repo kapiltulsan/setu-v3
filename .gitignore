@@ -15,4 +15,5 @@ __pycache__/
 Thumbs.db
 logs/
 .idea/
-*.pemdevpertqrcode-0608e65ee97d.json
+*.pem
+devpertqrcode-0608e65ee97d.json

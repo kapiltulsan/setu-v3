@@ -79,63 +79,94 @@
         </div>
 
         <!-- Main Content -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main Content Stack -->
+        <div class="flex flex-col gap-8">
 
             <!-- Job Scheduler -->
-            <div class="lg:col-span-2 glass rounded-xl p-6">
-                <div class="flex justify-between mb-4">
-                    <h2 class="text-xl font-bold">Scheduler Status</h2>
-                    <span class="text-sm bg-slate-700 px-2 py-1 rounded">{{ jobs.length }} Jobs Configured</span>
+            <div class="glass rounded-xl p-6">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold">Scheduler Status</h2>
+                        <span class="text-sm text-gray-400">{{ jobs.length }} Jobs Configured</span>
+                    </div>
+
+                    <!-- Search & Filter -->
+                    <div class="flex gap-4 w-full md:w-auto">
+                        <input type="text" v-model="searchQuery" placeholder="Search jobs..."
+                            class="bg-slate-800 text-white rounded px-3 py-2 border border-gray-700 focus:outline-none focus:border-blue-500 w-full md:w-64">
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="text-gray-400 border-b border-gray-700">
-                                <th class="p-2">Job Name</th>
-                                <th class="p-2">Schedule</th>
-                                <th class="p-2">Last Run</th>
-                                <th class="p-2">Status</th>
-                                <th class="p-2">Action</th>
+                                <th class="p-3 cursor-pointer hover:text-white select-none" @click="sort('name')">
+                                    Job Name <span v-if="sortKey==='name'">{{ sortAsc ? '↑' : '↓' }}</span>
+                                </th>
+                                <th class="p-3">Schedule</th>
+                                <th class="p-3 cursor-pointer hover:text-white select-none" @click="sort('last_run')">
+                                    Last Run <span v-if="sortKey==='last_run'">{{ sortAsc ? '↑' : '↓' }}</span>
+                                </th>
+                                <th class="p-3 cursor-pointer hover:text-white select-none" @click="sort('next_run')">
+                                    Next Run <span v-if="sortKey==='next_run'">{{ sortAsc ? '↑' : '↓' }}</span>
+                                </th>
+                                <th class="p-3 cursor-pointer hover:text-white select-none" @click="sort('status')">
+                                    Status <span v-if="sortKey==='status'">{{ sortAsc ? '↑' : '↓' }}</span>
+                                </th>
+                                <th class="p-3">Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="job in jobs" :key="job.name"
+                            <tr v-for="job in filteredJobs" :key="job.name"
                                 class="border-b border-gray-800 hover:bg-slate-800 transition">
-                                <td class="p-2 font-mono text-sm">
-                                    <button @click="openJobHistory(job.name)" class="text-blue-400 hover:underline">
+                                <td class="p-3 font-mono text-sm font-medium">
+                                    <button @click="openJobHistory(job.name)"
+                                        class="text-blue-400 hover:underline flex items-center gap-2">
                                         {{ job.name }}
                                     </button>
                                 </td>
-                                <td class="p-2 text-sm text-gray-400">{{ job.schedule }}</td>
-                                <td class="p-2 text-sm">{{ job.last_run || 'Never' }}</td>
-                                <td class="p-2">
+                                <td class="p-3 text-sm text-gray-400">{{ job.schedule }}</td>
+                                <td class="p-3 text-sm text-gray-300">{{ job.last_run || 'Never' }}</td>
+                                <td class="p-3 text-sm text-blue-300">{{ job.next_run || '-' }}</td>
+                                <td class="p-3">
                                     <span
-                                        :class="{'text-green-400': job.status === 'SUCCESS', 'text-red-400': job.status === 'FAILURE', 'text-yellow-400': job.status === 'RUNNING'}"
-                                        class="font-bold text-xs">
+                                        :class="{'px-2 py-1 rounded text-xs font-bold': true, 'bg-green-900 text-green-300': job.status === 'SUCCESS', 'bg-red-900 text-red-300': job.status === 'FAILURE', 'bg-yellow-900 text-yellow-300': job.status === 'RUNNING', 'bg-slate-700 text-gray-400': job.status === 'UNKNOWN'}">
                                         {{ job.status }}
                                     </span>
                                 </td>
-                                <td class="p-2">
+                                <td class="p-3">
                                     <button @click="triggerJob(job.name)"
-                                        class="text-blue-400 hover:text-blue-300 text-sm">▶ Run Now</button>
+                                        class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs transition shadow">Run
+                                        Now</button>
                                 </td>
+                            </tr>
+                            <tr v-if="filteredJobs.length === 0">
+                                <td colspan="6" class="p-8 text-center text-gray-500">No jobs found matching "{{
+                                    searchQuery }}"</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Live Stick logs -->
-            <div class="glass rounded-xl p-6 flex flex-col h-[600px]">
-                <h2 class="text-xl font-bold mb-4">Live System Logs</h2>
-                <div class="flex-1 overflow-y-auto bg-slate-900 rounded p-4 font-mono text-xs text-green-400 leading-tight"
+            <!-- Live System Logs (Full Width at Bottom) -->
+            <div class="glass rounded-xl p-6 flex flex-col h-[400px]">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-xl font-bold">Live System Logs</h2>
+                    <span class="text-xs text-green-400 animate-pulse">● Live Stream</span>
+                </div>
+                <div class="flex-1 overflow-y-auto bg-slate-950 rounded border border-gray-800 p-4 font-mono text-xs text-green-400 leading-relaxed shadow-inner"
                     id="log-container">
-                    <div v-for="(log, i) in liveLogs" :key="i" class="mb-1">
-                        <span class="text-gray-500">[{{ log.ts }}]</span>
-                        <span :class="{'text-red-500': log.lvl==='ERROR', 'text-yellow-500': log.lvl==='WARNING'}">{{
-                            log.lvl }}</span>:
-                        {{ log.msg }} <span class="text-gray-600">({{ log.mod }})</span>
+                    <div v-for="(log, i) in liveLogs" :key="i"
+                        class="mb-1 border-b border-gray-900 pb-1 hover:bg-slate-900">
+                        <span class="text-gray-500 mr-2">[{{ log.ts }}]</span>
+                        <span
+                            :class="{'text-red-400 font-bold': log.lvl==='ERROR', 'text-yellow-400': log.lvl==='WARNING', 'text-blue-400': log.lvl==='INFO'}">{{
+                            log.lvl }}</span>
+                        <span class="text-gray-600 mx-2">|</span>
+                        <span class="text-purple-400 w-24 inline-block truncate" :title="log.mod">{{ log.mod }}</span>
+                        <span class="text-gray-300">{{ log.msg }}</span>
                     </div>
                 </div>
             </div>
@@ -190,12 +221,54 @@
     </div>
 
     <script>
-        const { createApp, ref, onMounted } = Vue;
+        const { createApp, ref, computed, onMounted } = Vue;
 
         createApp({
             setup() {
                 const services = ref([]);
                 const jobs = ref([]);
+
+                // Table Interactions
+                const searchQuery = ref('');
+                const sortKey = ref('name');
+                const sortAsc = ref(true);
+
+                const getVal = (obj, key) => {
+                    if (!obj[key]) return '';
+                    return obj[key].toString().toLowerCase();
+                };
+
+                const filteredJobs = computed(() => {
+                    let data = jobs.value;
+
+                    // Filter
+                    if (searchQuery.value) {
+                        const q = searchQuery.value.toLowerCase();
+                        data = data.filter(j =>
+                            j.name.toLowerCase().includes(q) ||
+                            j.status.toLowerCase().includes(q)
+                        );
+                    }
+
+                    // Sort
+                    return data.sort((a, b) => {
+                        let va = getVal(a, sortKey.value);
+                        let vb = getVal(b, sortKey.value);
+
+                        if (va < vb) return sortAsc.value ? -1 : 1;
+                        if (va > vb) return sortAsc.value ? 1 : -1;
+                        return 0;
+                    });
+                });
+
+                const sort = (key) => {
+                    if (sortKey.value === key) {
+                        sortAsc.value = !sortAsc.value;
+                    } else {
+                        sortKey.value = key;
+                        sortAsc.value = true;
+                    }
+                };
 
                 const liveLogs = ref([]);
                 const showJobHistoryModal = ref(false);
@@ -264,13 +337,13 @@
 
                 const pollLogs = async () => {
                     try {
-                        const res = await fetch('/api/scheduler/history?limit=10');
+                        const res = await fetch('/api/scheduler/history?limit=25');
                         const data = await res.json();
                         liveLogs.value = data.map(d => ({
                             ts: new Date(d.start_time).toLocaleTimeString(),
-                            lvl: d.status === 'FAILURE' ? 'ERROR' : 'INFO',
+                            lvl: d.status === 'FAILURE' ? 'ERROR' : (d.status === 'RUNNING' ? 'INFO' : 'SUCCESS'),
                             mod: d.job_name,
-                            msg: d.output_summary ? d.output_summary.substring(0, 50) + '...' : d.status
+                            msg: d.output_summary ? d.output_summary.substring(0, 100) + '...' : d.status
                         }));
                     } catch (e) { }
                 };
@@ -302,12 +375,13 @@
                 });
 
                 return {
-
                     services, jobs, liveLogs,
                     showJobHistoryModal, selectedJob, jobHistory,
                     restartService, refreshSystem, triggerJob,
                     openJobHistory, closeJobHistory,
-                    getStatusClass, formatTime
+                    getStatusClass, formatTime,
+                    // New Returns
+                    searchQuery, sortKey, sortAsc, filteredJobs, sort
                 };
             }
         }).mount('#app');

@@ -6,14 +6,14 @@ import subprocess
 import json
 from flask import Blueprint, jsonify, request
 from psycopg2.extras import RealDictCursor
-from db_logger import EnterpriseLogger
+# from db_logger import EnterpriseLogger
 try:
     from croniter import croniter
 except ImportError:
     croniter = None
 
 jobs_bp = Blueprint('jobs', __name__)
-logger = EnterpriseLogger("mod_jobs")
+# logger = EnterpriseLogger("mod_jobs")
 
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_NAME = os.getenv("DB_NAME")
@@ -24,72 +24,90 @@ def get_db_connection():
     try:
         return psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
     except Exception as e:
-        logger.log("error", "DB Connection Failed", error=str(e))
+        print(f"DB Connection Failed: {e}", file=sys.stderr)
+        # logger.log("error", "DB Connection Failed", error=str(e))
         return None
 
 @jobs_bp.route('/api/jobs/latest')
 def get_latest_jobs():
-    """Fetch the latest status of key jobs and their schedules."""
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "DB Connection failed"}), 500
+    """Fetch the latest status."""
+    try:
+        conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
+    except Exception as e:
+        print(f"DB Connect Error: {e}", file=sys.stderr)
+        return jsonify({"error": str(e)}), 500
 
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # Get configured jobs
-            cur.execute("SELECT * FROM sys.scheduled_jobs ORDER BY name")
-            jobs_config = {row['name']: row for row in cur.fetchall()}
+        cur = conn.cursor()
+        
+        # Get configured jobs
+        cur.execute("SELECT name, schedule_cron, command, description, is_enabled FROM sys.scheduled_jobs ORDER BY name")
+        # Map manually
+        jobs_config = {}
+        for row in cur.fetchall():
+            jobs_config[row[0]] = {
+                "name": row[0], "schedule_cron": row[1], "command": row[2], 
+                "description": row[3], "is_enabled": row[4]
+            }
+
+        # Get history (limit columns)
+        query = """
+            SELECT DISTINCT ON (job_name) 
+                job_name, start_time, end_time, status, details, pid
+            FROM sys.job_history
+            ORDER BY job_name, start_time DESC;
+        """
+        cur.execute(query)
+        history_rows = cur.fetchall()
+        
+        results = []
+        for name, config in jobs_config.items():
+            # Find history row
+            h_row = None
+            for h in history_rows:
+                if h[0] == name:
+                    h_row = h
+                    break
             
-            # Get latest execution history
-            query = """
-                SELECT DISTINCT ON (job_name) 
-                    id, job_name, start_time, end_time, status, details, pid
-                FROM sys.job_history
-                ORDER BY job_name, start_time DESC;
-            """
-            cur.execute(query)
-            history_rows = cur.fetchall()
+            job_data = {
+                "name": name,
+                "schedule": config['schedule_cron'],
+                "status": "UNKNOWN",
+                "last_run": None,
+                "next_run": "N/A"
+            }
             
-            results = []
+            if h_row:
+                job_data["status"] = h_row[3]
+                if h_row[1]:
+                    job_data["last_run"] = h_row[1].strftime('%Y-%m-%d %H:%M:%S')
+
+            # Calculate Next Run
+            if croniter:
+                try:
+                    c_iter = croniter(config['schedule_cron'], datetime.datetime.now())
+                    job_data["next_run"] = c_iter.get_next(datetime.datetime).strftime('%d %b %I:%M %p')
+                except Exception:
+                    job_data["next_run"] = "Invalid Cron"
             
-            # Merge config and history
-            for name, config in jobs_config.items():
-                history = next((h for h in history_rows if h['job_name'] == name), None)
-                
-                job_data = {
-                    "name": name,
-                    "schedule": config['schedule_cron'],
-                    "command": config['command'],
-                    "description": config['description'],
-                    "is_enabled": config['is_enabled'],
-                    "status": "UNKNOWN",
-                    "last_run": None,
-                    "duration": None,
-                    "details": "",
-                    "pid": None
-                }
-                
-                if history:
-                    job_data["status"] = history['status']
-                    job_data["pid"] = history['pid']
-                    job_data["last_run"] = history['start_time'].strftime('%Y-%m-%d %H:%M:%S') if history['start_time'] else None
-                    if history['end_time'] and history['start_time']:
-                        duration = history['end_time'] - history['start_time']
-                        job_data["duration"] = str(duration).split('.')[0] # Remove microseconds
-                    elif history['status'] == "RUNNING":
-                         job_data["duration"] = "Running..."
-                    
-                    job_data["details"] = history['details']
-                
-                results.append(job_data)
-                
-            return jsonify(results)
+            results.append(job_data)
+            
+        cur.close()
+        conn.close()
+        return jsonify(results)
 
     except Exception as e:
-        logger.log("error", "Job History Query Failed", error=str(e))
+        print(f"Error: {e}", file=sys.stderr)
+        if conn: conn.close()
+        return jsonify({"error": str(e)}), 500
+
+    except Exception as e:
+        print(f"Job History Query Failed: {e}", file=sys.stderr)
+        # logger.log("error", "Job History Query Failed", error=str(e))
         return jsonify({"error": str(e)}), 500
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 @jobs_bp.route('/api/jobs/manage', methods=['POST'])
 def manage_job():
@@ -144,7 +162,8 @@ def manage_job():
                 return jsonify({"status": "error", "message": "Invalid action"}), 400
                 
             conn.commit()
-            logger.log("info", f"Job Managed: {action} {name}")
+            print(f"Job Managed: {action} {name}", file=sys.stdout)
+            # logger.log("info", f"Job Managed: {action} {name}")
             return jsonify({"status": "success", "message": msg})
             
     except psycopg2.IntegrityError:
@@ -152,7 +171,8 @@ def manage_job():
         return jsonify({"status": "error", "message": f"Job {name} already exists"}), 409
     except Exception as e:
         conn.rollback()
-        logger.log("error", f"Job Manage Failed: {e}", error=str(e))
+        print(f"Job Manage Failed: {e}", file=sys.stderr)
+        # logger.log("error", f"Job Manage Failed: {e}", error=str(e))
         return jsonify({"status": "error", "message": str(e)}), 500
     finally:
         conn.close()
@@ -186,11 +206,13 @@ def trigger_job():
             trigger_id = cur.fetchone()[0]
             conn.commit()
             
-            logger.log("info", f"Job Triggered: {job_name} (ID: {trigger_id})")
+            print(f"Job Triggered: {job_name} (ID: {trigger_id})", file=sys.stdout)
+            # logger.log("info", f"Job Triggered: {job_name} (ID: {trigger_id})")
             return jsonify({"status": "success", "message": "Job queued for execution"}), 200
             
     except Exception as e:
-        logger.log("error", f"Job Trigger Failed: {e}", error=str(e))
+        print(f"Job Trigger Failed: {e}", file=sys.stderr)
+        # logger.log("error", f"Job Trigger Failed: {e}", error=str(e))
         return jsonify({"status": "error", "message": str(e)}), 500
     finally:
         conn.close()
