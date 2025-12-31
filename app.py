@@ -10,6 +10,7 @@ from modules.logs import logs_bp, get_recent_logs
 from modules.auth import auth_bp, get_token_status, get_kite_url
 from modules.charts import charts_bp
 from modules.jobs import jobs_bp
+from modules.scanners import scanners_bp # NEW
 from modules.scheduler import scheduler_bp
 
 load_dotenv()
@@ -24,6 +25,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 app.register_blueprint(auth_bp)
 app.register_blueprint(charts_bp)
 app.register_blueprint(jobs_bp)
+app.register_blueprint(scanners_bp) # NEW
 app.register_blueprint(scheduler_bp)
 app.register_blueprint(logs_bp)
 from modules.portfolio import portfolio_bp

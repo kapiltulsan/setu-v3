@@ -1,6 +1,7 @@
 import AssetAllocationChart from "@/components/dashboard/AssetAllocationChart";
 import HeroCard from "@/components/dashboard/HeroCard";
 import LiveMetricsCard from "@/components/dashboard/LiveMetricsCard";
+import ScannerTileCard from "@/components/dashboard/ScannerTileCard";
 import TechStackCard from "@/components/dashboard/TechStackCard";
 
 
@@ -20,6 +21,7 @@ export default function Home() {
 
           {/* Row 2 */}
           <AssetAllocationChart />
+          <ScannerTileCard />
 
           {/* Placeholder for future cards (Logs, Heatmap etc) */}
 
