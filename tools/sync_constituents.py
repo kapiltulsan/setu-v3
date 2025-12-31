@@ -93,6 +93,18 @@ def sync_constituents() -> None:
                 logger.log("info", f"Inserting {total_mappings} mappings...")
                 execute_batch(cur, INSERT_MAPPING_SQL, all_mappings)
                 rows_written = cur.rowcount
+                
+                # Stage 3: Auto-Activate Symbols
+                # As per requirement: Any symbol found in an index source should be marked active
+                logger.log("info", "Auto-activating mapped symbols...")
+                cur.execute("""
+                    UPDATE ref.symbol 
+                    SET is_active = TRUE, updated_at = NOW() 
+                    WHERE trading_symbol IN (SELECT DISTINCT stock_symbol FROM ref.index_mapping)
+                      AND is_active = FALSE
+                """)
+                activated_count = cur.rowcount
+                logger.log("info", f"Activated {activated_count} previously inactive symbols.")
 
         logger.log("info", "Sync Complete", total_mappings=total_mappings, rows_written=rows_written)
         print(f"✅ Mapping Complete. Inserted {total_mappings} relationships from DB configuration.")

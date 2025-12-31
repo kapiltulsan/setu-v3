@@ -9,5 +9,6 @@ pyopenssl
 requests
 
 pandas
+numpy
 APScheduler
 croniter

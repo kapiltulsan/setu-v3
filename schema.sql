@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict OKpLgv8EXIaTlUJ6oGeoqo6eCSfkXVG6ocV8t2gIEL3GnSslhnOiCP46y3EUYAP
+\restrict vaPIwLDdCZWdEWir90hf01Jiqln0EhyuGIDvAgcWsPSMRsQ9blpJuYROXN8Bwv5
 
 -- Dumped from database version 18.1
 -- Dumped by pg_dump version 18.1
@@ -55,84 +55,52 @@ CREATE SCHEMA ref;
 
 
 --
+-- Name: sys; Type: SCHEMA; Schema: -; Owner: -
+--
+
+CREATE SCHEMA sys;
+
+
+--
 -- Name: trading; Type: SCHEMA; Schema: -; Owner: -
 --
 
 CREATE SCHEMA trading;
 
+
 --
--- Name: trades; Type: TABLE; Schema: trading; Owner: -
+-- Name: cleanup_old_triggers(); Type: FUNCTION; Schema: sys; Owner: -
 --
 
-CREATE TABLE trading.trades (
-    id SERIAL PRIMARY KEY,
-    symbol TEXT NOT NULL,
-    exchange TEXT DEFAULT 'NSE',
-    trade_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    txn_type TEXT NOT NULL CHECK (txn_type IN ('BUY', 'SELL')),
-    quantity NUMERIC(14,4) NOT NULL,
-    price NUMERIC(14,4) NOT NULL,
-    fees NUMERIC(14,4) DEFAULT 0,
-    net_amount NUMERIC(14,4) NOT NULL,
-    source TEXT DEFAULT 'MANUAL',
-    external_trade_id TEXT,
-    order_id TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX idx_trades_symbol_date ON trading.trades (symbol, trade_date);
-CREATE INDEX idx_trades_date ON trading.trades (trade_date);
+CREATE FUNCTION sys.cleanup_old_triggers() RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    DELETE FROM sys.job_triggers WHERE triggered_at < NOW() - INTERVAL '7 days';
+END;
+$$;
 
 
 --
--- Name: portfolio; Type: TABLE; Schema: trading; Owner: -
+-- Name: cleanup_zombie_jobs(); Type: FUNCTION; Schema: sys; Owner: -
 --
 
-CREATE TABLE trading.portfolio (
-    id SERIAL PRIMARY KEY,
-    date DATE NOT NULL,
-    symbol TEXT NOT NULL,
-    total_quantity NUMERIC(14,4) NOT NULL,
-    average_price NUMERIC(14,4) NOT NULL,
-    invested_value NUMERIC(14,4) NOT NULL,
-    current_value NUMERIC(14,4),
-    pnl NUMERIC(14,4),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(date, symbol)
-);
-
-CREATE INDEX idx_portfolio_date ON trading.portfolio (date);
-
-
---
--- Name: daily_pnl; Type: TABLE; Schema: trading; Owner: -
---
-
-CREATE TABLE trading.daily_pnl (
-    id SERIAL PRIMARY KEY,
-    date DATE NOT NULL UNIQUE,
-    realized_pnl NUMERIC(14,4) DEFAULT 0,
-    unrealized_pnl NUMERIC(14,4) DEFAULT 0,
-    charges NUMERIC(14,4) DEFAULT 0,
-    net_pnl NUMERIC(14,4) DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
---
--- Name: portfolio_view; Type: VIEW; Schema: trading; Owner: -
---
-
-CREATE OR REPLACE VIEW trading.portfolio_view AS
-SELECT 
-    symbol,
-    total_quantity as net_quantity,
-    average_price,
-    invested_value,
-    current_value,
-    pnl,
-    date as snapshot_date
-FROM trading.portfolio
-WHERE date = (SELECT MAX(date) FROM trading.portfolio);
+CREATE FUNCTION sys.cleanup_zombie_jobs() RETURNS integer
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    updated_count INT;
+BEGIN
+    UPDATE sys.job_history
+    SET status = 'CRASHED',
+        end_time = NOW(),
+        output_summary = 'Job marked as CRASHED during scheduler startup cleanup.'
+    WHERE status = 'RUNNING' AND start_time < NOW() - INTERVAL '1 hour'; -- Safety buffer
+    
+    GET DIAGNOSTICS updated_count = ROW_COUNT;
+    RETURN updated_count;
+END;
+$$;
 
 
 SET default_tablespace = '';
@@ -684,6 +652,36 @@ INHERITS (ohlc.candles_60m);
 
 CREATE TABLE _timescaledb_internal._hyper_3_211_chunk (
     CONSTRAINT constraint_211 CHECK (((candle_start >= '2025-12-04 05:30:00+05:30'::timestamp with time zone) AND (candle_start < '2025-12-11 05:30:00+05:30'::timestamp with time zone)))
+)
+INHERITS (ohlc.candles_60m);
+
+
+--
+-- Name: _hyper_3_215_chunk; Type: TABLE; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE TABLE _timescaledb_internal._hyper_3_215_chunk (
+    CONSTRAINT constraint_215 CHECK (((candle_start >= '2025-12-11 05:30:00+05:30'::timestamp with time zone) AND (candle_start < '2025-12-18 05:30:00+05:30'::timestamp with time zone)))
+)
+INHERITS (ohlc.candles_60m);
+
+
+--
+-- Name: _hyper_3_216_chunk; Type: TABLE; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE TABLE _timescaledb_internal._hyper_3_216_chunk (
+    CONSTRAINT constraint_216 CHECK (((candle_start >= '2025-12-18 05:30:00+05:30'::timestamp with time zone) AND (candle_start < '2025-12-25 05:30:00+05:30'::timestamp with time zone)))
+)
+INHERITS (ohlc.candles_60m);
+
+
+--
+-- Name: _hyper_3_217_chunk; Type: TABLE; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE TABLE _timescaledb_internal._hyper_3_217_chunk (
+    CONSTRAINT constraint_217 CHECK (((candle_start >= '2025-12-25 05:30:00+05:30'::timestamp with time zone) AND (candle_start < '2026-01-01 05:30:00+05:30'::timestamp with time zone)))
 )
 INHERITS (ohlc.candles_60m);
 
@@ -1413,6 +1411,36 @@ INHERITS (ohlc.candles_1d);
 
 CREATE TABLE _timescaledb_internal._hyper_4_20_chunk (
     CONSTRAINT constraint_20 CHECK (((candle_start >= '2023-04-13'::date) AND (candle_start < '2023-04-20'::date)))
+)
+INHERITS (ohlc.candles_1d);
+
+
+--
+-- Name: _hyper_4_212_chunk; Type: TABLE; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE TABLE _timescaledb_internal._hyper_4_212_chunk (
+    CONSTRAINT constraint_212 CHECK (((candle_start >= '2025-12-11'::date) AND (candle_start < '2025-12-18'::date)))
+)
+INHERITS (ohlc.candles_1d);
+
+
+--
+-- Name: _hyper_4_213_chunk; Type: TABLE; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE TABLE _timescaledb_internal._hyper_4_213_chunk (
+    CONSTRAINT constraint_213 CHECK (((candle_start >= '2025-12-18'::date) AND (candle_start < '2025-12-25'::date)))
+)
+INHERITS (ohlc.candles_1d);
+
+
+--
+-- Name: _hyper_4_214_chunk; Type: TABLE; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE TABLE _timescaledb_internal._hyper_4_214_chunk (
+    CONSTRAINT constraint_214 CHECK (((candle_start >= '2025-12-25'::date) AND (candle_start < '2026-01-01'::date)))
 )
 INHERITS (ohlc.candles_1d);
 
@@ -2417,6 +2445,398 @@ ALTER SEQUENCE ref.symbol_symbol_id_seq OWNED BY ref.symbol.symbol_id;
 
 
 --
+-- Name: app_logs; Type: TABLE; Schema: sys; Owner: -
+--
+
+CREATE TABLE sys.app_logs (
+    id integer NOT NULL,
+    history_id integer,
+    level character varying(10) NOT NULL,
+    message text NOT NULL,
+    module text,
+    "timestamp" timestamp with time zone DEFAULT now(),
+    metadata jsonb
+);
+
+
+--
+-- Name: app_logs_id_seq; Type: SEQUENCE; Schema: sys; Owner: -
+--
+
+CREATE SEQUENCE sys.app_logs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: app_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: sys; Owner: -
+--
+
+ALTER SEQUENCE sys.app_logs_id_seq OWNED BY sys.app_logs.id;
+
+
+--
+-- Name: job_history; Type: TABLE; Schema: sys; Owner: -
+--
+
+CREATE TABLE sys.job_history (
+    id integer NOT NULL,
+    job_name text NOT NULL,
+    start_time timestamp with time zone DEFAULT now(),
+    end_time timestamp with time zone,
+    status text,
+    details text,
+    created_at timestamp with time zone DEFAULT now(),
+    output_summary text,
+    pid integer,
+    CONSTRAINT job_history_status_check CHECK ((status = ANY (ARRAY['RUNNING'::text, 'SUCCESS'::text, 'FAILURE'::text, 'TIMEOUT'::text, 'CRASHED'::text, 'WARNING'::text])))
+);
+
+
+--
+-- Name: job_history_id_seq; Type: SEQUENCE; Schema: sys; Owner: -
+--
+
+CREATE SEQUENCE sys.job_history_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: job_history_id_seq; Type: SEQUENCE OWNED BY; Schema: sys; Owner: -
+--
+
+ALTER SEQUENCE sys.job_history_id_seq OWNED BY sys.job_history.id;
+
+
+--
+-- Name: job_triggers; Type: TABLE; Schema: sys; Owner: -
+--
+
+CREATE TABLE sys.job_triggers (
+    id integer NOT NULL,
+    job_name text NOT NULL,
+    params jsonb DEFAULT '{}'::jsonb,
+    triggered_by text DEFAULT 'system'::text,
+    triggered_at timestamp with time zone DEFAULT now(),
+    processed_at timestamp with time zone,
+    status text DEFAULT 'PENDING'::text,
+    execution_id uuid,
+    error_message text,
+    CONSTRAINT job_triggers_status_check CHECK ((status = ANY (ARRAY['PENDING'::text, 'PROCESSED'::text, 'FAILED'::text])))
+);
+
+
+--
+-- Name: job_triggers_id_seq; Type: SEQUENCE; Schema: sys; Owner: -
+--
+
+CREATE SEQUENCE sys.job_triggers_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: job_triggers_id_seq; Type: SEQUENCE OWNED BY; Schema: sys; Owner: -
+--
+
+ALTER SEQUENCE sys.job_triggers_id_seq OWNED BY sys.job_triggers.id;
+
+
+--
+-- Name: scanners; Type: TABLE; Schema: sys; Owner: -
+--
+
+CREATE TABLE sys.scanners (
+    id integer NOT NULL,
+    name text NOT NULL,
+    description text,
+    source_universe text NOT NULL,
+    logic_config jsonb NOT NULL,
+    schedule_cron text,
+    is_active boolean DEFAULT true,
+    last_run_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    last_run_stats jsonb DEFAULT '{}'::jsonb
+);
+
+
+--
+-- Name: scanners_id_seq; Type: SEQUENCE; Schema: sys; Owner: -
+--
+
+CREATE SEQUENCE sys.scanners_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: scanners_id_seq; Type: SEQUENCE OWNED BY; Schema: sys; Owner: -
+--
+
+ALTER SEQUENCE sys.scanners_id_seq OWNED BY sys.scanners.id;
+
+
+--
+-- Name: scheduled_jobs; Type: TABLE; Schema: sys; Owner: -
+--
+
+CREATE TABLE sys.scheduled_jobs (
+    id integer NOT NULL,
+    name text NOT NULL,
+    description text,
+    command text NOT NULL,
+    schedule_cron text NOT NULL,
+    is_enabled boolean DEFAULT true,
+    max_retries integer DEFAULT 0,
+    timeout_sec integer DEFAULT 3600,
+    last_run_at timestamp with time zone,
+    next_run_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: scheduled_jobs_id_seq; Type: SEQUENCE; Schema: sys; Owner: -
+--
+
+CREATE SEQUENCE sys.scheduled_jobs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: scheduled_jobs_id_seq; Type: SEQUENCE OWNED BY; Schema: sys; Owner: -
+--
+
+ALTER SEQUENCE sys.scheduled_jobs_id_seq OWNED BY sys.scheduled_jobs.id;
+
+
+--
+-- Name: service_status; Type: TABLE; Schema: sys; Owner: -
+--
+
+CREATE TABLE sys.service_status (
+    service_name text NOT NULL,
+    last_heartbeat timestamp with time zone,
+    status text,
+    info jsonb
+);
+
+
+--
+-- Name: daily_pnl; Type: TABLE; Schema: trading; Owner: -
+--
+
+CREATE TABLE trading.daily_pnl (
+    id integer NOT NULL,
+    date date NOT NULL,
+    realized_pnl numeric(14,4) DEFAULT 0,
+    unrealized_pnl numeric(14,4) DEFAULT 0,
+    charges numeric(14,4) DEFAULT 0,
+    net_pnl numeric(14,4) DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: daily_pnl_id_seq; Type: SEQUENCE; Schema: trading; Owner: -
+--
+
+CREATE SEQUENCE trading.daily_pnl_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: daily_pnl_id_seq; Type: SEQUENCE OWNED BY; Schema: trading; Owner: -
+--
+
+ALTER SEQUENCE trading.daily_pnl_id_seq OWNED BY trading.daily_pnl.id;
+
+
+--
+-- Name: orders; Type: TABLE; Schema: trading; Owner: -
+--
+
+CREATE TABLE trading.orders (
+    order_id text NOT NULL,
+    exchange_order_id text,
+    symbol text NOT NULL,
+    exchange text,
+    txn_type text,
+    quantity integer,
+    price numeric(14,4),
+    status text,
+    order_timestamp timestamp with time zone,
+    average_price numeric(14,4),
+    filled_quantity integer,
+    variety text,
+    validity text,
+    product text,
+    tag text,
+    status_message text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: portfolio; Type: TABLE; Schema: trading; Owner: -
+--
+
+CREATE TABLE trading.portfolio (
+    id integer NOT NULL,
+    date date NOT NULL,
+    symbol text NOT NULL,
+    total_quantity numeric(14,4) NOT NULL,
+    average_price numeric(14,4) NOT NULL,
+    invested_value numeric(14,4) NOT NULL,
+    current_value numeric(14,4),
+    pnl numeric(14,4),
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: portfolio_id_seq; Type: SEQUENCE; Schema: trading; Owner: -
+--
+
+CREATE SEQUENCE trading.portfolio_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: portfolio_id_seq; Type: SEQUENCE OWNED BY; Schema: trading; Owner: -
+--
+
+ALTER SEQUENCE trading.portfolio_id_seq OWNED BY trading.portfolio.id;
+
+
+--
+-- Name: portfolio_view; Type: VIEW; Schema: trading; Owner: -
+--
+
+CREATE VIEW trading.portfolio_view AS
+ SELECT symbol,
+    total_quantity AS net_quantity,
+    average_price,
+    invested_value,
+    current_value,
+    pnl,
+    date AS snapshot_date
+   FROM trading.portfolio
+  WHERE (date = ( SELECT max(portfolio_1.date) AS max
+           FROM trading.portfolio portfolio_1));
+
+
+--
+-- Name: positions; Type: TABLE; Schema: trading; Owner: -
+--
+
+CREATE TABLE trading.positions (
+    id integer NOT NULL,
+    date date NOT NULL,
+    symbol text NOT NULL,
+    exchange text,
+    product text,
+    quantity integer,
+    average_price numeric(14,4),
+    last_price numeric(14,4),
+    pnl numeric(14,4),
+    m2m numeric(14,4),
+    realised numeric(14,4),
+    unrealised numeric(14,4),
+    value numeric(14,4),
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: positions_id_seq; Type: SEQUENCE; Schema: trading; Owner: -
+--
+
+CREATE SEQUENCE trading.positions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: positions_id_seq; Type: SEQUENCE OWNED BY; Schema: trading; Owner: -
+--
+
+ALTER SEQUENCE trading.positions_id_seq OWNED BY trading.positions.id;
+
+
+--
+-- Name: scanner_results; Type: TABLE; Schema: trading; Owner: -
+--
+
+CREATE TABLE trading.scanner_results (
+    id integer NOT NULL,
+    scanner_id integer,
+    run_date timestamp with time zone DEFAULT now(),
+    symbol text NOT NULL,
+    match_data jsonb,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: scanner_results_id_seq; Type: SEQUENCE; Schema: trading; Owner: -
+--
+
+CREATE SEQUENCE trading.scanner_results_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: scanner_results_id_seq; Type: SEQUENCE OWNED BY; Schema: trading; Owner: -
+--
+
+ALTER SEQUENCE trading.scanner_results_id_seq OWNED BY trading.scanner_results.id;
+
+
+--
 -- Name: trades; Type: TABLE; Schema: trading; Owner: -
 --
 
@@ -2442,35 +2862,6 @@ CREATE TABLE trading.trades (
     CONSTRAINT check_prod_type CHECK ((product_type = ANY (ARRAY['CNC'::text, 'MIS'::text, 'NRML'::text, 'CO'::text]))),
     CONSTRAINT check_txn_type CHECK ((transaction_type = ANY (ARRAY['BUY'::text, 'SELL'::text])))
 );
-
-
---
--- Name: portfolio_view; Type: VIEW; Schema: trading; Owner: -
---
-
-CREATE VIEW trading.portfolio_view AS
- SELECT symbol,
-    exchange_code,
-    (sum(
-        CASE
-            WHEN (transaction_type = 'BUY'::text) THEN quantity
-            ELSE 0
-        END) - sum(
-        CASE
-            WHEN (transaction_type = 'SELL'::text) THEN quantity
-            ELSE 0
-        END)) AS net_quantity
-   FROM trading.trades
-  GROUP BY symbol, exchange_code
- HAVING ((sum(
-        CASE
-            WHEN (transaction_type = 'BUY'::text) THEN quantity
-            ELSE 0
-        END) - sum(
-        CASE
-            WHEN (transaction_type = 'SELL'::text) THEN quantity
-            ELSE 0
-        END)) > 0);
 
 
 --
@@ -3603,6 +3994,69 @@ ALTER TABLE ONLY _timescaledb_internal._hyper_3_211_chunk ALTER COLUMN volume SE
 --
 
 ALTER TABLE ONLY _timescaledb_internal._hyper_3_211_chunk ALTER COLUMN created_at SET DEFAULT now();
+
+
+--
+-- Name: _hyper_3_215_chunk exchange_code; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_215_chunk ALTER COLUMN exchange_code SET DEFAULT 'NSE'::text;
+
+
+--
+-- Name: _hyper_3_215_chunk volume; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_215_chunk ALTER COLUMN volume SET DEFAULT 0;
+
+
+--
+-- Name: _hyper_3_215_chunk created_at; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_215_chunk ALTER COLUMN created_at SET DEFAULT now();
+
+
+--
+-- Name: _hyper_3_216_chunk exchange_code; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_216_chunk ALTER COLUMN exchange_code SET DEFAULT 'NSE'::text;
+
+
+--
+-- Name: _hyper_3_216_chunk volume; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_216_chunk ALTER COLUMN volume SET DEFAULT 0;
+
+
+--
+-- Name: _hyper_3_216_chunk created_at; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_216_chunk ALTER COLUMN created_at SET DEFAULT now();
+
+
+--
+-- Name: _hyper_3_217_chunk exchange_code; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_217_chunk ALTER COLUMN exchange_code SET DEFAULT 'NSE'::text;
+
+
+--
+-- Name: _hyper_3_217_chunk volume; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_217_chunk ALTER COLUMN volume SET DEFAULT 0;
+
+
+--
+-- Name: _hyper_3_217_chunk created_at; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_217_chunk ALTER COLUMN created_at SET DEFAULT now();
 
 
 --
@@ -5094,6 +5548,69 @@ ALTER TABLE ONLY _timescaledb_internal._hyper_4_20_chunk ALTER COLUMN volume SET
 --
 
 ALTER TABLE ONLY _timescaledb_internal._hyper_4_20_chunk ALTER COLUMN created_at SET DEFAULT now();
+
+
+--
+-- Name: _hyper_4_212_chunk exchange_code; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_212_chunk ALTER COLUMN exchange_code SET DEFAULT 'NSE'::text;
+
+
+--
+-- Name: _hyper_4_212_chunk volume; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_212_chunk ALTER COLUMN volume SET DEFAULT 0;
+
+
+--
+-- Name: _hyper_4_212_chunk created_at; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_212_chunk ALTER COLUMN created_at SET DEFAULT now();
+
+
+--
+-- Name: _hyper_4_213_chunk exchange_code; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_213_chunk ALTER COLUMN exchange_code SET DEFAULT 'NSE'::text;
+
+
+--
+-- Name: _hyper_4_213_chunk volume; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_213_chunk ALTER COLUMN volume SET DEFAULT 0;
+
+
+--
+-- Name: _hyper_4_213_chunk created_at; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_213_chunk ALTER COLUMN created_at SET DEFAULT now();
+
+
+--
+-- Name: _hyper_4_214_chunk exchange_code; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_214_chunk ALTER COLUMN exchange_code SET DEFAULT 'NSE'::text;
+
+
+--
+-- Name: _hyper_4_214_chunk volume; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_214_chunk ALTER COLUMN volume SET DEFAULT 0;
+
+
+--
+-- Name: _hyper_4_214_chunk created_at; Type: DEFAULT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_214_chunk ALTER COLUMN created_at SET DEFAULT now();
 
 
 --
@@ -6945,6 +7462,69 @@ ALTER TABLE ONLY ref.symbol ALTER COLUMN symbol_id SET DEFAULT nextval('ref.symb
 
 
 --
+-- Name: app_logs id; Type: DEFAULT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.app_logs ALTER COLUMN id SET DEFAULT nextval('sys.app_logs_id_seq'::regclass);
+
+
+--
+-- Name: job_history id; Type: DEFAULT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.job_history ALTER COLUMN id SET DEFAULT nextval('sys.job_history_id_seq'::regclass);
+
+
+--
+-- Name: job_triggers id; Type: DEFAULT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.job_triggers ALTER COLUMN id SET DEFAULT nextval('sys.job_triggers_id_seq'::regclass);
+
+
+--
+-- Name: scanners id; Type: DEFAULT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.scanners ALTER COLUMN id SET DEFAULT nextval('sys.scanners_id_seq'::regclass);
+
+
+--
+-- Name: scheduled_jobs id; Type: DEFAULT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.scheduled_jobs ALTER COLUMN id SET DEFAULT nextval('sys.scheduled_jobs_id_seq'::regclass);
+
+
+--
+-- Name: daily_pnl id; Type: DEFAULT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.daily_pnl ALTER COLUMN id SET DEFAULT nextval('trading.daily_pnl_id_seq'::regclass);
+
+
+--
+-- Name: portfolio id; Type: DEFAULT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.portfolio ALTER COLUMN id SET DEFAULT nextval('trading.portfolio_id_seq'::regclass);
+
+
+--
+-- Name: positions id; Type: DEFAULT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.positions ALTER COLUMN id SET DEFAULT nextval('trading.positions_id_seq'::regclass);
+
+
+--
+-- Name: scanner_results id; Type: DEFAULT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.scanner_results ALTER COLUMN id SET DEFAULT nextval('trading.scanner_results_id_seq'::regclass);
+
+
+--
 -- Name: trades trade_id; Type: DEFAULT; Schema: trading; Owner: -
 --
 
@@ -7944,6 +8524,54 @@ ALTER TABLE ONLY _timescaledb_internal._hyper_3_211_chunk
 
 
 --
+-- Name: _hyper_4_212_chunk 212_424_pk_candles_1d; Type: CONSTRAINT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_212_chunk
+    ADD CONSTRAINT "212_424_pk_candles_1d" PRIMARY KEY (symbol, candle_start);
+
+
+--
+-- Name: _hyper_4_213_chunk 213_426_pk_candles_1d; Type: CONSTRAINT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_213_chunk
+    ADD CONSTRAINT "213_426_pk_candles_1d" PRIMARY KEY (symbol, candle_start);
+
+
+--
+-- Name: _hyper_4_214_chunk 214_428_pk_candles_1d; Type: CONSTRAINT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_214_chunk
+    ADD CONSTRAINT "214_428_pk_candles_1d" PRIMARY KEY (symbol, candle_start);
+
+
+--
+-- Name: _hyper_3_215_chunk 215_430_pk_candles_60m; Type: CONSTRAINT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_215_chunk
+    ADD CONSTRAINT "215_430_pk_candles_60m" PRIMARY KEY (symbol, candle_start);
+
+
+--
+-- Name: _hyper_3_216_chunk 216_432_pk_candles_60m; Type: CONSTRAINT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_216_chunk
+    ADD CONSTRAINT "216_432_pk_candles_60m" PRIMARY KEY (symbol, candle_start);
+
+
+--
+-- Name: _hyper_3_217_chunk 217_434_pk_candles_60m; Type: CONSTRAINT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_217_chunk
+    ADD CONSTRAINT "217_434_pk_candles_60m" PRIMARY KEY (symbol, candle_start);
+
+
+--
 -- Name: _hyper_4_21_chunk 21_42_pk_candles_1d; Type: CONSTRAINT; Schema: _timescaledb_internal; Owner: -
 --
 
@@ -8704,6 +9332,134 @@ ALTER TABLE ONLY ref.index_mapping
 
 
 --
+-- Name: app_logs app_logs_pkey; Type: CONSTRAINT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.app_logs
+    ADD CONSTRAINT app_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_history job_history_pkey; Type: CONSTRAINT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.job_history
+    ADD CONSTRAINT job_history_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_triggers job_triggers_pkey; Type: CONSTRAINT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.job_triggers
+    ADD CONSTRAINT job_triggers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: scanners scanners_name_key; Type: CONSTRAINT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.scanners
+    ADD CONSTRAINT scanners_name_key UNIQUE (name);
+
+
+--
+-- Name: scanners scanners_pkey; Type: CONSTRAINT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.scanners
+    ADD CONSTRAINT scanners_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: scheduled_jobs scheduled_jobs_name_key; Type: CONSTRAINT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.scheduled_jobs
+    ADD CONSTRAINT scheduled_jobs_name_key UNIQUE (name);
+
+
+--
+-- Name: scheduled_jobs scheduled_jobs_pkey; Type: CONSTRAINT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.scheduled_jobs
+    ADD CONSTRAINT scheduled_jobs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_status service_status_pkey; Type: CONSTRAINT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.service_status
+    ADD CONSTRAINT service_status_pkey PRIMARY KEY (service_name);
+
+
+--
+-- Name: daily_pnl daily_pnl_date_key; Type: CONSTRAINT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.daily_pnl
+    ADD CONSTRAINT daily_pnl_date_key UNIQUE (date);
+
+
+--
+-- Name: daily_pnl daily_pnl_pkey; Type: CONSTRAINT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.daily_pnl
+    ADD CONSTRAINT daily_pnl_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: orders orders_pkey; Type: CONSTRAINT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.orders
+    ADD CONSTRAINT orders_pkey PRIMARY KEY (order_id);
+
+
+--
+-- Name: portfolio portfolio_date_symbol_key; Type: CONSTRAINT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.portfolio
+    ADD CONSTRAINT portfolio_date_symbol_key UNIQUE (date, symbol);
+
+
+--
+-- Name: portfolio portfolio_pkey; Type: CONSTRAINT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.portfolio
+    ADD CONSTRAINT portfolio_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: positions positions_date_symbol_product_key; Type: CONSTRAINT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.positions
+    ADD CONSTRAINT positions_date_symbol_product_key UNIQUE (date, symbol, product);
+
+
+--
+-- Name: positions positions_pkey; Type: CONSTRAINT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.positions
+    ADD CONSTRAINT positions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: scanner_results scanner_results_pkey; Type: CONSTRAINT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.scanner_results
+    ADD CONSTRAINT scanner_results_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: trades trades_pkey; Type: CONSTRAINT; Schema: trading; Owner: -
 --
 
@@ -9088,6 +9844,27 @@ CREATE INDEX _hyper_3_210_chunk_candles_60m_candle_start_idx ON _timescaledb_int
 --
 
 CREATE INDEX _hyper_3_211_chunk_candles_60m_candle_start_idx ON _timescaledb_internal._hyper_3_211_chunk USING btree (candle_start DESC);
+
+
+--
+-- Name: _hyper_3_215_chunk_candles_60m_candle_start_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _hyper_3_215_chunk_candles_60m_candle_start_idx ON _timescaledb_internal._hyper_3_215_chunk USING btree (candle_start DESC);
+
+
+--
+-- Name: _hyper_3_216_chunk_candles_60m_candle_start_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _hyper_3_216_chunk_candles_60m_candle_start_idx ON _timescaledb_internal._hyper_3_216_chunk USING btree (candle_start DESC);
+
+
+--
+-- Name: _hyper_3_217_chunk_candles_60m_candle_start_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _hyper_3_217_chunk_candles_60m_candle_start_idx ON _timescaledb_internal._hyper_3_217_chunk USING btree (candle_start DESC);
 
 
 --
@@ -9585,6 +10362,27 @@ CREATE INDEX _hyper_4_1_chunk_candles_1d_candle_start_idx ON _timescaledb_intern
 --
 
 CREATE INDEX _hyper_4_20_chunk_candles_1d_candle_start_idx ON _timescaledb_internal._hyper_4_20_chunk USING btree (candle_start DESC);
+
+
+--
+-- Name: _hyper_4_212_chunk_candles_1d_candle_start_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _hyper_4_212_chunk_candles_1d_candle_start_idx ON _timescaledb_internal._hyper_4_212_chunk USING btree (candle_start DESC);
+
+
+--
+-- Name: _hyper_4_213_chunk_candles_1d_candle_start_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _hyper_4_213_chunk_candles_1d_candle_start_idx ON _timescaledb_internal._hyper_4_213_chunk USING btree (candle_start DESC);
+
+
+--
+-- Name: _hyper_4_214_chunk_candles_1d_candle_start_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _hyper_4_214_chunk_candles_1d_candle_start_idx ON _timescaledb_internal._hyper_4_214_chunk USING btree (candle_start DESC);
 
 
 --
@@ -10215,6 +11013,90 @@ CREATE INDEX candles_60m_candle_start_idx ON ohlc.candles_60m USING btree (candl
 --
 
 CREATE UNIQUE INDEX ux_symbol_exchange ON ref.symbol USING btree (exchange_code, symbol);
+
+
+--
+-- Name: idx_app_logs_history_id; Type: INDEX; Schema: sys; Owner: -
+--
+
+CREATE INDEX idx_app_logs_history_id ON sys.app_logs USING btree (history_id);
+
+
+--
+-- Name: idx_app_logs_timestamp; Type: INDEX; Schema: sys; Owner: -
+--
+
+CREATE INDEX idx_app_logs_timestamp ON sys.app_logs USING btree ("timestamp" DESC);
+
+
+--
+-- Name: idx_job_history_job_name; Type: INDEX; Schema: sys; Owner: -
+--
+
+CREATE INDEX idx_job_history_job_name ON sys.job_history USING btree (job_name);
+
+
+--
+-- Name: idx_job_history_job_start; Type: INDEX; Schema: sys; Owner: -
+--
+
+CREATE INDEX idx_job_history_job_start ON sys.job_history USING btree (job_name, start_time DESC);
+
+
+--
+-- Name: idx_job_history_start_time; Type: INDEX; Schema: sys; Owner: -
+--
+
+CREATE INDEX idx_job_history_start_time ON sys.job_history USING btree (start_time DESC);
+
+
+--
+-- Name: idx_job_history_status; Type: INDEX; Schema: sys; Owner: -
+--
+
+CREATE INDEX idx_job_history_status ON sys.job_history USING btree (status);
+
+
+--
+-- Name: idx_job_triggers_pending; Type: INDEX; Schema: sys; Owner: -
+--
+
+CREATE INDEX idx_job_triggers_pending ON sys.job_triggers USING btree (status) WHERE (status = 'PENDING'::text);
+
+
+--
+-- Name: idx_portfolio_date; Type: INDEX; Schema: trading; Owner: -
+--
+
+CREATE INDEX idx_portfolio_date ON trading.portfolio USING btree (date);
+
+
+--
+-- Name: idx_scanner_results_run_date; Type: INDEX; Schema: trading; Owner: -
+--
+
+CREATE INDEX idx_scanner_results_run_date ON trading.scanner_results USING btree (run_date);
+
+
+--
+-- Name: idx_scanner_results_scanner_id; Type: INDEX; Schema: trading; Owner: -
+--
+
+CREATE INDEX idx_scanner_results_scanner_id ON trading.scanner_results USING btree (scanner_id);
+
+
+--
+-- Name: idx_trades_date; Type: INDEX; Schema: trading; Owner: -
+--
+
+CREATE INDEX idx_trades_date ON trading.trades USING btree (trade_date);
+
+
+--
+-- Name: idx_trades_symbol_date; Type: INDEX; Schema: trading; Owner: -
+--
+
+CREATE INDEX idx_trades_symbol_date ON trading.trades USING btree (symbol, trade_date);
 
 
 --
@@ -11224,6 +12106,54 @@ ALTER TABLE ONLY _timescaledb_internal._hyper_3_211_chunk
 
 
 --
+-- Name: _hyper_4_212_chunk 212_423_candles_1d_symbol_id_fkey; Type: FK CONSTRAINT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_212_chunk
+    ADD CONSTRAINT "212_423_candles_1d_symbol_id_fkey" FOREIGN KEY (symbol_id) REFERENCES ref.symbol(symbol_id);
+
+
+--
+-- Name: _hyper_4_213_chunk 213_425_candles_1d_symbol_id_fkey; Type: FK CONSTRAINT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_213_chunk
+    ADD CONSTRAINT "213_425_candles_1d_symbol_id_fkey" FOREIGN KEY (symbol_id) REFERENCES ref.symbol(symbol_id);
+
+
+--
+-- Name: _hyper_4_214_chunk 214_427_candles_1d_symbol_id_fkey; Type: FK CONSTRAINT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_4_214_chunk
+    ADD CONSTRAINT "214_427_candles_1d_symbol_id_fkey" FOREIGN KEY (symbol_id) REFERENCES ref.symbol(symbol_id);
+
+
+--
+-- Name: _hyper_3_215_chunk 215_429_candles_60m_symbol_id_fkey; Type: FK CONSTRAINT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_215_chunk
+    ADD CONSTRAINT "215_429_candles_60m_symbol_id_fkey" FOREIGN KEY (symbol_id) REFERENCES ref.symbol(symbol_id);
+
+
+--
+-- Name: _hyper_3_216_chunk 216_431_candles_60m_symbol_id_fkey; Type: FK CONSTRAINT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_216_chunk
+    ADD CONSTRAINT "216_431_candles_60m_symbol_id_fkey" FOREIGN KEY (symbol_id) REFERENCES ref.symbol(symbol_id);
+
+
+--
+-- Name: _hyper_3_217_chunk 217_433_candles_60m_symbol_id_fkey; Type: FK CONSTRAINT; Schema: _timescaledb_internal; Owner: -
+--
+
+ALTER TABLE ONLY _timescaledb_internal._hyper_3_217_chunk
+    ADD CONSTRAINT "217_433_candles_60m_symbol_id_fkey" FOREIGN KEY (symbol_id) REFERENCES ref.symbol(symbol_id);
+
+
+--
 -- Name: _hyper_4_21_chunk 21_41_candles_1d_symbol_id_fkey; Type: FK CONSTRAINT; Schema: _timescaledb_internal; Owner: -
 --
 
@@ -11944,8 +12874,32 @@ ALTER TABLE ONLY ref.symbol
 
 
 --
+-- Name: app_logs app_logs_history_id_fkey; Type: FK CONSTRAINT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.app_logs
+    ADD CONSTRAINT app_logs_history_id_fkey FOREIGN KEY (history_id) REFERENCES sys.job_history(id) ON DELETE CASCADE;
+
+
+--
+-- Name: job_triggers job_triggers_job_name_fkey; Type: FK CONSTRAINT; Schema: sys; Owner: -
+--
+
+ALTER TABLE ONLY sys.job_triggers
+    ADD CONSTRAINT job_triggers_job_name_fkey FOREIGN KEY (job_name) REFERENCES sys.scheduled_jobs(name) ON DELETE CASCADE;
+
+
+--
+-- Name: scanner_results scanner_results_scanner_id_fkey; Type: FK CONSTRAINT; Schema: trading; Owner: -
+--
+
+ALTER TABLE ONLY trading.scanner_results
+    ADD CONSTRAINT scanner_results_scanner_id_fkey FOREIGN KEY (scanner_id) REFERENCES sys.scanners(id) ON DELETE CASCADE;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict OKpLgv8EXIaTlUJ6oGeoqo6eCSfkXVG6ocV8t2gIEL3GnSslhnOiCP46y3EUYAP
+\unrestrict vaPIwLDdCZWdEWir90hf01Jiqln0EhyuGIDvAgcWsPSMRsQ9blpJuYROXN8Bwv5
 
