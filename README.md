@@ -5,6 +5,7 @@ Setu V3 is a Flask-based application for algorithmic trading and portfolio manag
 ## 🏗 Architecture & Terminology
 - **Reporting Panel (Port 3000)**: The frontend dashboard interface (Next.js).
 - **Admin Panel (Port 5000)**: The backend API and Flask-based reporting views (HTTPS).
+- **Stock Scanner**: Define and run algorithmic strategies on daily/weekly data.
 
 ## 🚀 Setup Instructions
 

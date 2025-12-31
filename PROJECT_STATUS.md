@@ -33,6 +33,15 @@ This document tracks the major achievements, feature implementations, and system
 - Updated `RUNBOOK.md` to reflect the new architecture.
 - Documented the use of the Admin Panel for manual job triggers.
 
+### 5. 🔍 Stock Scanner Module
+**Goal**: Interactive interface to build, run, and visualize custom trading logic.
+- **Implemented**: Full stack scanner module (Next.js Frontend + Flask Backend + Python Logic Engine).
+- **Features**:
+  - **Funnel Visualization**: View stats at every filtering stage (Universe -> Primary -> Refiner).
+  - **Live Preview**: Test conditions instantly on the latest market data.
+  - **Natural Language Rules**: Complex logic translated into human-readable English.
+  - **Data Persistence**: Results saved to `trading.scanner_results` for historical analysis.
+
 ---
 
 ## 🔮 Roadmap / Next Steps

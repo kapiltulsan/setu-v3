@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ScannerDetail } from "@/types/scanner";
 import Link from "next/link";
+import { explainCondition, LogicCondition } from "@/components/scanner-builder";
 
 export default function ScannerDetailsPage() {
     const { id } = useParams();
@@ -42,6 +43,15 @@ export default function ScannerDetailsPage() {
 
     if (loading) return <div className="p-6">Loading details...</div>;
     if (!data) return <div className="p-6">Scanner not found.</div>;
+
+    // Parse Logic
+    let logic = data.config.logic_config || {};
+    if (typeof logic === 'string') {
+        try { logic = JSON.parse(logic); } catch (e) { }
+    }
+    const universe = logic.universe || [];
+    const primary = (logic.primary_filter || []) as LogicCondition[];
+    const refiner = (logic.refiner || []) as LogicCondition[];
 
     return (
         <div className="p-6">
@@ -86,6 +96,82 @@ export default function ScannerDetailsPage() {
                     <p className="text-xl font-medium text-gray-900">
                         {data.config.last_run_at ? new Date(data.config.last_run_at).toLocaleString() : "Never"}
                     </p>
+                </div>
+            </div>
+
+            {/* Strategy Configuration */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                    <h3 className="font-semibold text-gray-800">Strategy Configuration</h3>
+                    {data.config.last_run_stats && (
+                        <div className="flex items-center gap-2 text-xs font-mono bg-white px-3 py-1 rounded border border-gray-200 shadow-sm">
+                            <span className="text-blue-600 font-bold" title="Universe Size">{data.config.last_run_stats.universe ?? '-'}</span>
+                            <span className="text-gray-400">→</span>
+                            <span className="text-indigo-600 font-bold" title="After Primary Filter">{data.config.last_run_stats.primary ?? '-'}</span>
+                            <span className="text-gray-400">→</span>
+                            <span className="text-purple-600 font-bold" title="Final Matches">{data.config.last_run_stats.refiner ?? '-'}</span>
+                        </div>
+                    )}
+                </div>
+                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+                    {/* Funnel Arrows Overlay (Desktop only) */}
+                    <div className="hidden md:block absolute top-1/2 left-1/3 -translate-y-1/2 -translate-x-1/2 text-gray-200 z-0">
+                        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                    </div>
+                    <div className="hidden md:block absolute top-1/2 left-2/3 -translate-y-1/2 -translate-x-1/2 text-gray-200 z-0">
+                        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                    </div>
+
+                    {/* Universe */}
+                    <div className="relative z-10 bg-white/80">
+                        <div className="flex justify-between items-center mb-2">
+                            <h4 className="text-sm font-bold text-blue-800 uppercase tracking-wide">Layer 1: Universe</h4>
+                            {data.config.last_run_stats?.universe !== undefined && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">{data.config.last_run_stats.universe}</span>
+                            )}
+                        </div>
+                        <div className="bg-blue-50 p-3 rounded text-sm text-blue-900 border border-blue-100 min-h-[60px]">
+                            {universe.length > 0 ? universe.join(", ") : "No Universe Selected"}
+                        </div>
+                    </div>
+
+                    {/* Primary */}
+                    <div className="relative z-10 bg-white/80">
+                        <div className="flex justify-between items-center mb-2">
+                            <h4 className="text-sm font-bold text-indigo-800 uppercase tracking-wide">Layer 2: Primary Filters</h4>
+                            {data.config.last_run_stats?.primary !== undefined && (
+                                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">{data.config.last_run_stats.primary} passed</span>
+                            )}
+                        </div>
+                        {primary.length === 0 ? <p className="text-gray-400 italic text-sm">None</p> : (
+                            <ul className="space-y-2">
+                                {primary.map((c, i) => (
+                                    <li key={i} className="bg-indigo-50 p-2 rounded text-sm text-indigo-900 border border-indigo-100">
+                                        {explainCondition(c)}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+
+                    {/* Refiner */}
+                    <div className="relative z-10 bg-white/80">
+                        <div className="flex justify-between items-center mb-2">
+                            <h4 className="text-sm font-bold text-purple-800 uppercase tracking-wide">Layer 3: Refiner</h4>
+                            {data.config.last_run_stats?.refiner !== undefined && (
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">{data.config.last_run_stats.refiner} confirmed</span>
+                            )}
+                        </div>
+                        {refiner.length === 0 ? <p className="text-gray-400 italic text-sm">None</p> : (
+                            <ul className="space-y-2">
+                                {refiner.map((c, i) => (
+                                    <li key={i} className="bg-purple-50 p-2 rounded text-sm text-purple-900 border border-purple-100">
+                                        {explainCondition(c)}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
                 </div>
             </div>
 

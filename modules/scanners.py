@@ -24,6 +24,36 @@ def get_db_connection():
 
 # --- CRUD Endpoints ---
 
+@scanners_bp.route('/api/indices', methods=['GET'])
+def get_indices():
+    """List available indices for Universe selection."""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "DB Connection Failed"}), 500
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT index_name FROM ref.index_source WHERE is_active = TRUE ORDER BY index_name")
+            # Return simple list of strings
+            indices = [row[0] for row in cur.fetchall()]
+            return jsonify(indices)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@scanners_bp.route('/api/universe/count', methods=['POST'])
+def get_universe_count():
+    """Calculate unique symbols for a given universe config."""
+    from modules.scanner_engine import fetch_universe_symbols
+    try:
+        data = request.json
+        universe_config = data.get('universe', [])
+        symbols = fetch_universe_symbols(universe_config)
+        return jsonify({"count": len(symbols)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @scanners_bp.route('/api/scanners', methods=['GET'])
 def get_scanners():
     """List all scanners."""
@@ -130,6 +160,93 @@ def get_scanner_details(scanner_id):
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
+@scanners_bp.route('/api/scanners/<int:scanner_id>', methods=['PUT'])
+def update_scanner(scanner_id):
+    """Update an existing scanner."""
+    data = request.json
+    name = data.get('name')
+    source = data.get('source_universe')
+    logic = data.get('logic_config')
+    schedule = data.get('schedule_cron')
+    
+    if not name or not source or not logic:
+        return jsonify({"error": "Missing required fields"}), 400
+        
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB Failed"}), 500
+    
+    try:
+        with conn.cursor() as cur:
+            # Check if exists
+            cur.execute("SELECT id FROM sys.scanners WHERE id = %s", (scanner_id,))
+            if not cur.fetchone():
+                return jsonify({"error": "Scanner not found"}), 404
+
+            cur.execute("""
+                UPDATE sys.scanners 
+                SET name = %s, description = %s, source_universe = %s, logic_config = %s, schedule_cron = %s, updated_at = NOW()
+                WHERE id = %s
+            """, (name, data.get('description', ''), source, json.dumps(logic), schedule, scanner_id))
+            
+            conn.commit()
+            return jsonify({"status": "success", "message": "Scanner updated successfully"}), 200
+            
+    except psycopg2.IntegrityError:
+        conn.rollback()
+        return jsonify({"error": "Scanner with this name already exists"}), 409
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@scanners_bp.route('/api/scanners/<int:scanner_id>', methods=['DELETE'])
+def delete_scanner(scanner_id):
+    """Delete a scanner."""
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB Failed"}), 500
+    
+    try:
+        with conn.cursor() as cur:
+            # Check if exists
+            cur.execute("SELECT id FROM sys.scanners WHERE id = %s", (scanner_id,))
+            if not cur.fetchone():
+                return jsonify({"error": "Scanner not found"}), 404
+            
+            # Delete results first
+            cur.execute("DELETE FROM trading.scanner_results WHERE scanner_id = %s", (scanner_id,))
+            
+            # Delete scanner
+            cur.execute("DELETE FROM sys.scanners WHERE id = %s", (scanner_id,))
+            conn.commit()
+            
+            return jsonify({"status": "success", "message": "Scanner deleted successfully"}), 200
+            
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@scanners_bp.route('/api/scanners/preview', methods=['POST'])
+def preview_scanner():
+    """Run a dry run of the scanner logic and return matches."""
+    from modules.scanner_engine import execute_scan_logic
+    try:
+        data = request.json
+        logic_config = data.get('logic_config', {})
+        
+        # Run logic (limit to 50 for performance)
+        matches = execute_scan_logic(logic_config, limit_results=50)
+        
+        return jsonify({
+            "count": len(matches),
+            "matches": matches
+        })
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
 
 @scanners_bp.route('/api/scanners/<int:scanner_id>/run', methods=['POST'])
 def run_scanner(scanner_id):

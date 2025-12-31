@@ -82,13 +82,6 @@ restart_service "setu-dashboard"
 restart_service "setu-scheduler"
 
 
-echo "🔄 Restarting Services..."
-
-
-# Reload systemd manager configuration to handle any file changes
-sudo systemctl daemon-reload
-restart_service "setu-admin"
-restart_service "setu-dashboard"
 
 echo "✅ Deployment Complete! 🚀"
 echo "   - Modules updated."

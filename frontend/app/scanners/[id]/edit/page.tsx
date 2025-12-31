@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import ScannerBuilder, { LogicCondition, explainCondition } from "@/components/scanner-builder";
 
-export default function NewScannerPage() {
+export default function EditScannerPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
+    const { id: scannerId } = use(params);
 
     // Form State
     const [name, setName] = useState("");
@@ -17,12 +18,12 @@ export default function NewScannerPage() {
     const [primaryFilter, setPrimaryFilter] = useState<LogicCondition[]>([]);
     const [refiner, setRefiner] = useState<LogicCondition[]>([]);
 
-
     // Data Sources
     const [availableIndices, setAvailableIndices] = useState<string[]>([]);
     const [loadingIndices, setLoadingIndices] = useState(true);
     const [universeCount, setUniverseCount] = useState<number>(0);
     const [isCalculating, setIsCalculating] = useState(false);
+    const [loadingScanner, setLoadingScanner] = useState(true);
 
     // Filter UI State
     const [searchTerm, setSearchTerm] = useState("");
@@ -33,7 +34,7 @@ export default function NewScannerPage() {
     const [error, setError] = useState<string | null>(null);
     const [showExplanation, setShowExplanation] = useState(false);
 
-    // Fetch Indices on Mount
+    // 1. Fetch Indices
     useEffect(() => {
         fetch("/api/indices")
             .then(res => res.json())
@@ -46,6 +47,40 @@ export default function NewScannerPage() {
                 setLoadingIndices(false);
             });
     }, []);
+
+    // 2. Fetch Scanner Details
+    useEffect(() => {
+        if (!scannerId) return;
+
+        setLoadingScanner(true);
+        fetch(`/api/scanners/${scannerId}`)
+            .then(res => {
+                if (!res.ok) throw new Error("Scanner not found");
+                return res.json();
+            })
+            .then(data => {
+                const config = data.config;
+                setName(config.name);
+                setDescription(config.description || "");
+                setScheduleCron(config.schedule_cron || "0 18 * * *");
+
+                // Parse Logic Config
+                let logic = config.logic_config || {};
+                if (typeof logic === 'string') {
+                    try { logic = JSON.parse(logic); } catch (e) { console.error("JSON Parse Error", e); }
+                }
+
+                setUniverse(logic.universe || []);
+                setPrimaryFilter(logic.primary_filter || []);
+                setRefiner(logic.refiner || []);
+
+                setLoadingScanner(false);
+            })
+            .catch(err => {
+                setError("Failed to load scanner details: " + err.message);
+                setLoadingScanner(false);
+            });
+    }, [scannerId]);
 
     // Calculate Universe Size when selection changes
     useEffect(() => {
@@ -70,7 +105,7 @@ export default function NewScannerPage() {
                     console.error("Count failed", err);
                     setIsCalculating(false);
                 });
-        }, 500); // 500ms debounce to prevent too many requests while selecting
+        }, 500);
 
         return () => clearTimeout(timer);
     }, [universe]);
@@ -101,25 +136,25 @@ export default function NewScannerPage() {
         const payload = {
             name,
             description,
-            source_universe: universe.join(", "), // Legacy field, storing readable list
+            source_universe: universe.join(", "),
             logic_config: logicConfig,
             schedule_cron: scheduleCron
         };
 
         try {
-            const res = await fetch("/api/scanners", {
-                method: "POST",
+            const res = await fetch(`/api/scanners/${scannerId}`, {
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
 
             if (!res.ok) {
                 const errData = await res.json();
-                throw new Error(errData.error || "Failed to create scanner");
+                throw new Error(errData.error || "Failed to update scanner");
             }
 
-            const data = await res.json();
-            alert(`Scanner Created! ID: ${data.id}`);
+            // Success feedback
+            alert("Scanner updated successfully!");
             router.push("/scanners");
 
         } catch (err: any) {
@@ -128,10 +163,18 @@ export default function NewScannerPage() {
         }
     };
 
+    if (loadingScanner) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-xl text-gray-500">Loading scanner details...</div>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-4xl mx-auto p-6 pb-20">
             <div className="flex items-center justify-between mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Create Smart Scanner</h1>
+                <h1 className="text-3xl font-bold text-gray-900">Edit Scanner</h1>
                 <button
                     onClick={() => router.back()}
                     className="text-gray-600 hover:text-gray-900"
@@ -327,7 +370,7 @@ export default function NewScannerPage() {
                                 Saving...
                             </>
                         ) : (
-                            "Save & Active Scanner"
+                            "Update Scanner"
                         )}
                     </button>
                 </div>

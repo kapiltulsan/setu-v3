@@ -113,6 +113,7 @@ This script will:
 5. **CRITICAL**: Check for new DB migrations in `migrations/` and run them if needed:
    ```bash
    python tools/run_migration.py migrations/apply_migration_005.py
+   python tools/run_migration.py migrations/007_add_scanner_module.sql
    ```
 
 ### Restarting the Service

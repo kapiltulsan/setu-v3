@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 
 interface PortfolioSummary {
     total_invested: number;
@@ -14,6 +14,7 @@ const LiveMetricsCard = () => {
     const [data, setData] = useState<PortfolioSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
+    const [visible, setVisible] = useState(false); // Default masked
 
     const fetchData = async () => {
         try {
@@ -23,11 +24,9 @@ const LiveMetricsCard = () => {
             if (!res.ok) throw new Error('Network response was not ok');
 
             const json = await res.json();
-            // Start of Selection
             if (json.summary) {
                 setData(json.summary);
             } else {
-                // Fallback/Mock if empty
                 setData({
                     total_invested: 0,
                     current_value: 0,
@@ -48,6 +47,11 @@ const LiveMetricsCard = () => {
         const interval = setInterval(fetchData, 30000); // Poll every 30s
         return () => clearInterval(interval);
     }, []);
+
+    const formatCurrency = (val: number | string) => {
+        // Enforce no decimals and Indian locale
+        return "₹" + Number(val).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    };
 
     if (loading && !data) {
         return (
@@ -81,27 +85,42 @@ const LiveMetricsCard = () => {
 
             <div className="flex justify-between items-start z-10">
                 <div>
-                    <h3 className="text-zinc-400 text-sm font-medium mb-1">Total Portfolio Value</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-zinc-400 text-sm font-medium">Total Portfolio Value</h3>
+                        <button
+                            onClick={() => setVisible(!visible)}
+                            className="text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none"
+                            title={visible ? "Hide Balance" : "Show Balance"}
+                        >
+                            {visible ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                    </div>
                     <div className="text-3xl font-bold text-white tracking-tight">
-                        ₹{data?.current_value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        {visible ? formatCurrency(data?.current_value || 0) : "₹ ****"}
                     </div>
                 </div>
                 <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
                     {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                    {data?.pnl_percent}%
+                    {Number(data?.pnl_percent || 0).toFixed(2)}%
                 </div>
             </div>
 
             <div className="mt-6 z-10">
                 <div className="flex justify-between items-end">
                     <div className="flex flex-col">
-                        <span className="text-zinc-500 text-xs">Invested</span>
-                        <span className="text-zinc-300 font-semibold">₹{data?.total_invested.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                        <span className="text-zinc-500 text-xs text-left">Invested</span>
+                        <span className="text-zinc-300 font-semibold text-lg">
+                            {visible ? formatCurrency(data?.total_invested || 0) : "₹ ****"}
+                        </span>
                     </div>
                     <div className="flex flex-col items-end">
-                        <span className="text-zinc-500 text-xs">P&L</span>
-                        <span className={`font-semibold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                            {isPositive ? '+' : ''}₹{data?.pnl_absolute.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        <span className="text-zinc-500 text-xs text-right">P&L</span>
+                        <span className={`font-semibold text-lg ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {visible ? (
+                                <>
+                                    {isPositive ? '+' : ''}{formatCurrency(data?.pnl_absolute || 0).replace("₹", "₹")}
+                                </>
+                            ) : "****"}
                         </span>
                     </div>
                 </div>

@@ -59,6 +59,15 @@ The dashboard is the central command center. It is divided into 4 main tiles:
   - `ERROR` (Red): Attention required.
 - **Path**: Logs are stored locally in `logs/SetuV3/Python/<YYYY-MM-DD>/`.
 
+### 7. 🔍 Stock Scanner
+- **Location**: Frontend > Scanners.
+- **Purpose**: Create and run technical rules to filter stocks.
+- **Workflow**:
+  1. Click "+ New Scanner".
+  2. Define Universe (e.g., NIFTY 50), Filters (Layer 2), and Refiners (Layer 3).
+  3. Save and Click "Run Now".
+  4. View results in the "Latest Results" table or "History" tab.
+
 ---
 
 ## 🛠️ Common Workflows
