@@ -238,11 +238,14 @@ def preview_scanner():
         logic_config = data.get('logic_config', {})
         
         # Run logic (limit to 50 for performance)
-        matches = execute_scan_logic(logic_config, limit_results=50)
+        result = execute_scan_logic(logic_config, limit_results=50)
+        matches = result.get("matches", [])
+        stats = result.get("stats", {})
         
         return jsonify({
             "count": len(matches),
-            "matches": matches
+            "matches": matches,
+            "stats": stats
         })
     except Exception as e:
         print(traceback.format_exc())
