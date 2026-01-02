@@ -1,9 +1,28 @@
+"""
+MODULE: ADMIN BACKEND (FLASK)
+=============================
+Purpose:
+  The core API and Management Server for Setu V3.
+  Hosted on Port 5000.
+
+Features:
+  - Serves the Admin Dashboard (Server-Side Rendered Templates).
+  - Provides REST APIs for the Next.js Reporting Panel.
+  - Manages Background Jobs, Authentication, and System Health monitoring.
+  - Hosts the Scheduler instance.
+
+Blueprints:
+  - Auth, Charts, Jobs, Logs, Scanners, Scheduler, Portfolio
+"""
+
 import os
 import socket
 import psutil
 from flask import Flask, render_template, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
+
+load_dotenv() # Load env before importing modules that might use them (like scanner_engine)
 
 # Import Modules
 from modules.logs import logs_bp, get_recent_logs
@@ -98,7 +117,7 @@ def dashboard():
 
 if __name__ == '__main__':
     # Local Dev Run
-    print("🚀 Starting Setu V3 Admin Dashboard...")
+    print("Starting Setu V3 Admin Dashboard...")
     #app.run(host='0.0.0.0', port=5000, debug=True, ssl_context='adhoc')
     app.run(host='0.0.0.0', port=5000, debug=True, ssl_context=('cert.pem', 'key.pem'))
 #

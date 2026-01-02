@@ -49,8 +49,12 @@ def get_universe_count():
     try:
         data = request.json
         universe_config = data.get('universe', [])
-        symbols = fetch_universe_symbols(universe_config)
-        return jsonify({"count": len(symbols)})
+        universe_filters = data.get('universe_filters', [])
+        symbols, index_count = fetch_universe_symbols(universe_config, universe_filters)
+        return jsonify({
+            "count": len(symbols),
+            "index_count": index_count
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

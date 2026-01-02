@@ -33,12 +33,28 @@ class EnterpriseLogger:
         self.host = socket.gethostname()
         self.exec_id = os.getenv("SETU_EXECUTION_ID") # Injected by Scheduler
         
-        # Configure Internal Logger to write to STDOUT (captured by Scheduler)
+        # --- Log Directory Setup (Restored) ---
+        # Structure: logs/SetuV3/Python/YYYY-MM-DD/name.log
+        today_str = datetime.now(IST).strftime("%Y-%m-%d")
+        base_dir = os.path.join("logs", "SetuV3", "Python", today_str)
+        os.makedirs(base_dir, exist_ok=True)
+        
+        log_file = os.path.join(base_dir, f"{name}.log")
+        
         self._logger = logging.getLogger(name)
         self._logger.setLevel(logging.INFO)
+        
+        # Avoid adding handlers multiple times if logger is reused
         if not self._logger.handlers:
-            handler = logging.StreamHandler(sys.stdout)
-            self._logger.addHandler(handler)
+            # 1. Console Handler (for Scheduler capture/Terminal)
+            console_handler = logging.StreamHandler(sys.stdout)
+            self._logger.addHandler(console_handler)
+            
+            # 2. File Handler (Restored)
+            file_handler = logging.FileHandler(log_file, encoding='utf-8')
+            self._logger.addHandler(file_handler)
+            
+        self.log_file_path = log_file
 
     def _format_message(self, level, msg, **kwargs):
         """Formats the log message as structured JSON."""

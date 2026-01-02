@@ -1,0 +1,3 @@
+[DEBUG] NIFTY 50: Passed Filter Strategy
+[DEBUG] NIFTY 50: Failed Filter Strategy
+[DEBUG] NIFTY 50: EXCLUDED from Universe

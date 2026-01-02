@@ -1,0 +1,18 @@
+# 🚨 CRITICAL CODING STANDARDS - AUTHENTICATION
+
+## 1. No Hardcoded Env Vars
+NEVER use generic environment variables like `KITE_API_KEY` or `DHAN_CLIENT_ID`.
+We support 5 different users. Always resolve credentials dynamically.
+
+## 2. The Resolution Flow
+To get an API Key, your code must follow this path:
+1.  **Input:** Function receives `user="kapil"` and `account_type="trading"`.
+2.  **Lookup:** Read `portfolio_rules.json` -> `accounts["kapil"]["trading"]`.
+3.  **Check:** Is `is_operational: true`? If no, raise error.
+4.  **Bridge:** Get the `credential_id` string (e.g., `KAP_DHAN_TRADE`).
+5.  **Fetch:** Load `os.environ[f"API_KEY_{credential_id}"]`.
+
+## 3. Strict Broker Separation
+- **Dhan** code must ONLY run if the broker in JSON is "DHAN".
+- **Angel One** code must ONLY run if the broker in JSON is "ANGEL_ONE".
+- Do not assume "Kapil" always uses "Zerodha". Check the JSON.

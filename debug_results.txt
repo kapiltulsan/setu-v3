@@ -1,0 +1,30 @@
+--- Checking for NIFTY symbols in ohlc.candles_1d ---
+('NIFTY 100',)
+('NIFTY 200',)
+('NIFTY 50',)
+('NIFTY 500',)
+('NIFTY AUTO',)
+('NIFTY BANK',)
+('NIFTY CONSR DURBL',)
+('NIFTY FIN SERVICE',)
+('NIFTY FMCG',)
+('NIFTY HEALTHCARE',)
+('NIFTY IT',)
+('NIFTY MEDIA',)
+('NIFTY METAL',)
+('NIFTY MIDCAP 150',)
+('NIFTY NEXT 50',)
+('NIFTY PHARMA',)
+('NIFTY PSU BANK',)
+('NIFTY PVT BANK',)
+('NIFTY REALTY',)
+
+--- Checking specific count for 'NIFTY 50' ---
+Count for 'NIFTY 50': 763
+
+--- Checking specific count for 'Nifty 50' ---
+Count for 'Nifty 50': 0
+
+--- Checking constituents for 'NIFTY 50' in ref.index_mapping ---
+Constituents count: 10 (limit 10)
+Sample: [('ADANIENT',), ('ADANIPORTS',), ('APOLLOHOSP',), ('ASIANPAINT',), ('AXISBANK',), ('BAJAJ-AUTO',), ('BAJAJFINSV',), ('BAJFINANCE',), ('BEL',), ('BHARTIARTL',)]

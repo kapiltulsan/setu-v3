@@ -41,6 +41,7 @@ This document tracks the major achievements, feature implementations, and system
   - **Live Preview**: Test conditions instantly on the latest market data.
   - **Natural Language Rules**: Complex logic translated into human-readable English.
   - **Data Persistence**: Results saved to `trading.scanner_results` for historical analysis.
+  - **Refinement (Jan 2026)**: Enhanced logic engine to support hybrid Indicator-vs-Value comparisons and "Index Gatekeeper" filtering.
 
 ---
 

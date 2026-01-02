@@ -14,6 +14,7 @@ export default function NewScannerPage() {
 
     // 3-Layer Logic State
     const [universe, setUniverse] = useState<string[]>([]);
+    const [universeFilters, setUniverseFilters] = useState<LogicCondition[]>([]); // Layer 1 Filters
     const [primaryFilter, setPrimaryFilter] = useState<LogicCondition[]>([]);
     const [refiner, setRefiner] = useState<LogicCondition[]>([]);
 
@@ -22,6 +23,7 @@ export default function NewScannerPage() {
     const [availableIndices, setAvailableIndices] = useState<string[]>([]);
     const [loadingIndices, setLoadingIndices] = useState(true);
     const [universeCount, setUniverseCount] = useState<number>(0);
+    const [indexCount, setIndexCount] = useState<number>(0);
     const [isCalculating, setIsCalculating] = useState(false);
 
     // Filter UI State
@@ -47,23 +49,30 @@ export default function NewScannerPage() {
             });
     }, []);
 
-    // Calculate Universe Size when selection changes
+    // Calculate Universe Size when selection changes (or filters change)
     useEffect(() => {
         if (universe.length === 0) {
             setUniverseCount(0);
+            setIndexCount(0);
             return;
         }
 
         const timer = setTimeout(() => {
             setIsCalculating(true);
+            const payload = {
+                universe,
+                universe_filters: universeFilters
+            };
+
             fetch("/api/universe/count", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ universe })
+                body: JSON.stringify(payload)
             })
                 .then(res => res.json())
                 .then(data => {
                     setUniverseCount(data.count);
+                    setIndexCount(data.index_count !== undefined ? data.index_count : universe.length);
                     setIsCalculating(false);
                 })
                 .catch(err => {
@@ -73,7 +82,7 @@ export default function NewScannerPage() {
         }, 500); // 500ms debounce to prevent too many requests while selecting
 
         return () => clearTimeout(timer);
-    }, [universe]);
+    }, [universe, universeFilters]);
 
     const toggleIndex = (idx: string) => {
         setUniverse(prev =>
@@ -94,6 +103,7 @@ export default function NewScannerPage() {
 
         const logicConfig = {
             universe: universe,
+            universe_filters: universeFilters,
             primary_filter: primaryFilter,
             refiner: refiner
         };
@@ -193,7 +203,7 @@ export default function NewScannerPage() {
                         <p className="text-sm text-blue-700">Select the pool of stocks to start with (Source from Index_Source)</p>
                     </div>
                     <div className="p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
                             {/* Left Side: Search & Selection */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Search & Add Indices</label>
@@ -279,8 +289,24 @@ export default function NewScannerPage() {
                             </div>
                         </div>
 
+                        {/* Sub-Layer 1: Filter Indices */}
+                        <div className="mt-8 border-t border-blue-100 pt-6">
+                            <h3 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                                    <path fillRule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 018 18.25v-5.757a2.25 2.25 0 00-.659-1.591L2.659 6.22A2.25 2.25 0 012 4.629V2.34a.75.75 0 01.628-.74z" clipRule="evenodd" />
+                                </svg>
+                                Filter Indices (Applied to the Index itself)
+                            </h3>
+                            <p className="text-xs text-gray-500 mb-4">
+                                Add conditions to filter which indices to use. E.g. <code>Close &gt; SMA(200)</code> will only include indices that represent an uptrend.
+                            </p>
+                            <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+                                <ScannerBuilder value={universeFilters} onChange={setUniverseFilters} />
+                            </div>
+                        </div>
+
                         <div className="mt-4 text-sm text-gray-500 text-right">
-                            Target Universe: <strong>{isCalculating ? "Calculating..." : universeCount} Unique Scrips</strong>
+                            Target Universe: <strong>{isCalculating ? "Calculating..." : `${indexCount} Indices | ${universeCount} Unique Scrips`}</strong>
                         </div>
                     </div>
                 </div>
@@ -368,6 +394,17 @@ export default function NewScannerPage() {
                                     <p className="text-gray-600 mt-1">
                                         Scan will check all stocks in <span className="font-medium text-blue-700">{universe.length > 0 ? universe.join(", ") : "Empty Selection"}</span>.
                                     </p>
+
+                                    {universeFilters.length > 0 && (
+                                        <div className="mt-2 bg-blue-50 p-2 rounded text-sm text-blue-800">
+                                            <p className="font-medium">Only indices matching these are included:</p>
+                                            <ul className="list-disc pl-4 mt-1">
+                                                {universeFilters.map((c, i) => (
+                                                    <li key={i}>{explainCondition(c)}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

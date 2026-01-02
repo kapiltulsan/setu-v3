@@ -1,0 +1,179 @@
+{
+    "project_name": "Setu v3",
+    "policy_version": "2026.1.2",
+    "description": "Family Investment Policy & Routing Rules",
+    "system_config": {
+        "ohlc_provider": {
+            "user_ref": "komal",
+            "account_ref": "investing_passive",
+            "description": "Using Komal's Zerodha API for free OHLC data"
+        }
+    },
+    "api_mapping": {
+        "DHAN": "dhan_client",
+        "ZERODHA": "zerodha_client",
+        "ANGEL_ONE": "angel_one_client",
+        "UPSTOX": "upstox_client",
+        "BINANCE": "binance_connector"
+    },
+    "accounts": {
+        "kapil": {
+            "trading": {
+                "broker": "DHAN",
+                "is_operational": false,
+                "credential_id": "KAP_DHAN_TRADE",
+                "api_type": "trade_execution",
+                "allowed_segments": [
+                    "F&O",
+                    "EQ",
+                    "INTRADAY"
+                ],
+                "risk_limit": "high"
+            },
+            "investing_longterm": {
+                "broker": "ANGEL_ONE",
+                "is_operational": false,
+                "credential_id": "KAP_ANGEL_LONG",
+                "note": "Planned migration",
+                "api_type": "trade_execution",
+                "allowed_segments": [
+                    "EQ"
+                ],
+                "restriction": "DELIVERY_ONLY"
+            },
+            "investing_passive": {
+                "broker": "ZERODHA",
+                "is_operational": false,
+                "credential_id": "KAP_ZERODHA_PASSIVE",
+                "api_type": "portfolio_view",
+                "allowed_segments": [
+                    "MF",
+                    "SMALLCASE"
+                ]
+            }
+        },
+        "komal": {
+            "trading": {
+                "broker": "DHAN",
+                "is_operational": false,
+                "credential_id": "KOM_DHAN_TRADE",
+                "api_type": "trade_execution",
+                "allowed_segments": [
+                    "F&O",
+                    "EQ",
+                    "INTRADAY"
+                ]
+            },
+            "investing_longterm": {
+                "broker": "ANGEL_ONE",
+                "is_operational": false,
+                "credential_id": "KOM_ANGEL_LONG",
+                "note": "Planned migration",
+                "api_type": "trade_execution",
+                "allowed_segments": [
+                    "EQ"
+                ],
+                "restriction": "DELIVERY_ONLY"
+            },
+            "investing_passive": {
+                "broker": "ZERODHA",
+                "is_operational": true,
+                "credential_id": "KOM_ZERODHA_PASSIVE",
+                "api_type": "portfolio_view",
+                "allowed_segments": [
+                    "MF",
+                    "SMALLCASE"
+                ]
+            },
+            "crypto": {
+                "broker": "BINANCE",
+                "is_operational": false,
+                "credential_id": "KOM_BINANCE_CRYPTO",
+                "api_type": "read_only",
+                "allowed_segments": [
+                    "CRYPTO"
+                ],
+                "status": "regulatory_check_needed"
+            }
+        },
+        "kids_vault": {
+            "trading": {
+                "broker": "UPSTOX",
+                "is_operational": false,
+                "credential_id": "KIDS_UPSTOX_ACTIVE",
+                "api_type": "trade_execution",
+                "allowed_segments": [
+                    "EQ",
+                    "MF",
+                    "SMALLCASE"
+                ]
+            }
+        },
+        "janak": {
+            "trading": {
+                "broker": "DHAN",
+                "is_operational": false,
+                "credential_id": "JAN_DHAN_TRADE",
+                "api_type": "trade_execution",
+                "allowed_segments": [
+                    "F&O",
+                    "EQ",
+                    "INTRADAY"
+                ]
+            },
+            "investing_longterm": {
+                "broker": "ANGEL_ONE",
+                "is_operational": false,
+                "credential_id": "JAN_ANGEL_LONG",
+                "api_type": "trade_execution",
+                "allowed_segments": [
+                    "EQ"
+                ],
+                "restriction": "DELIVERY_ONLY"
+            },
+            "investing_passive": {
+                "broker": "ZERODHA",
+                "is_operational": false,
+                "credential_id": "JAN_ZERODHA_PASSIVE",
+                "api_type": "portfolio_view",
+                "allowed_segments": [
+                    "SMALLCASE",
+                    "MF"
+                ]
+            }
+        },
+        "devina": {
+            "trading": {
+                "broker": "DHAN",
+                "is_operational": false,
+                "credential_id": "DEV_DHAN_TRADE",
+                "api_type": "trade_execution",
+                "allowed_segments": [
+                    "F&O",
+                    "EQ",
+                    "INTRADAY"
+                ]
+            },
+            "investing_longterm": {
+                "broker": "ANGEL_ONE",
+                "is_operational": false,
+                "credential_id": "DEV_ANGEL_LONG",
+                "api_type": "trade_execution",
+                "allowed_segments": [
+                    "EQ"
+                ],
+                "restriction": "DELIVERY_ONLY"
+            },
+            "investing_passive": {
+                "broker": "ZERODHA",
+                "is_operational": false,
+                "credential_id": "DEV_ZERODHA_PASSIVE",
+                "api_type": "portfolio_view",
+                "allowed_segments": [
+                    "SMALLCASE",
+                    "MF"
+                ]
+            }
+        }
+    }
+}
