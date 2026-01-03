@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Import Wizard - Admin Panel</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --card: #1e1e1e;
+            --text: #e0e0e0;
+            --muted: #888;
+            --border: #333;
+            --green: #03dac6;
+            --blue: #64b5f6;
+            --field-bg: #2d2d2d;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* Steps */
+        .step {
+            display: none;
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--blue);
+        }
+
+        label {
+            display: block;
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            margin-top: 15px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            background: var(--field-bg);
+            border: 1px solid var(--border);
+            color: white;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        .btn-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        button {
+            padding: 10px 24px;
+            border-radius: 6px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            background: var(--blue);
+            color: #000;
+        }
+
+        button.secondary {
+            background: transparent;
+            border: 1px solid var(--muted);
+            color: var(--muted);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Mapping Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th {
+            text-align: left;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border);
+            padding: 10px;
+            font-size: 0.85rem;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .sample-val {
+            font-family: monospace;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div style="margin-bottom: 20px;">
+            <a href="/" style="color: var(--muted); text-decoration: none;">&larr; Dashboard</a>
+        </div>
+
+        <!-- Step 1: Broker Selection -->
+        <div id="step1" class="step active">
+            <div class="card">
+                <h2>1. Select Broker</h2>
+                <p style="color:var(--muted)">Which broker are you configuring?</p>
+                <select id="provider">
+                    <option value="">-- Loading Brokers... --</option>
+                </select>
+                <div class="btn-row">
+                    <button onclick="goToStep2()">Next &rarr;</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: File & parsing -->
+        <div id="step2" class="step">
+            <div class="card">
+                <h2>2. Upload Sample & Configure</h2>
+                <p style="color:var(--muted)">Upload a sample tradebook to detect columns.</p>
+
+                <label>Sample File (CSV)</label>
+                <input type="file" id="csvFile" accept=".csv">
+
+                <label>Skip Top Rows</label>
+                <input type="number" id="skipRows" value="0" min="0">
+                <small style="color:var(--muted)">Number of rows to ignore before the header line.</small>
+
+                <label>Skip First N Columns</label>
+                <input type="number" id="skipCols" value="0" min="0">
+                <small style="color:var(--muted)">Number of columns to ignore from left.</small>
+
+                <div class="btn-row">
+                    <button class="secondary" onclick="showStep(1)">&larr; Back</button>
+                    <button onclick="goToStep3()">Preview & Map &rarr;</button>
+                    <button class="secondary" id="directMapBtn" style="display:none;" onclick="skipToStep3()">Edit
+                        Existing &rarr;</button>
+                </div>
+                <div id="previewError" style="color: var(--red); margin-top: 10px; display:none;"></div>
+            </div>
+        </div>
+
+        <!-- Step 3: Mapping -->
+        <div id="step3" class="step">
+            <div class="card">
+                <h2>3. Map Columns</h2>
+                <p style="color:var(--muted)">Match CSV headers to Database columns.</p>
+
+                <div style="overflow-x: auto;">
+                    <table id="mappingTable">
+                        <thead>
+                            <tr>
+                                <th>CSV Header</th>
+                                <th>Sample Value</th>
+                                <th>Database Column</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mappingBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="btn-row">
+                    <button class="secondary" onclick="showStep(2)">&larr; Back</button>
+                    <button onclick="saveConfiguration()">Save Configuration</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Success -->
+        <div id="step4" class="step">
+            <div class="card" style="text-align: center; padding: 50px;">
+                <h2 style="color: var(--green)">Configuration Saved!</h2>
+                <p>The system is now ready to import trades from <b id="successProv"></b>.</p>
+                <div class="btn-row" style="justify-content: center;">
+                    <button onclick="location.reload()">Configure Another</button>
+                    <a href="/" style="margin-left: 10px;"><button class="secondary">Go to Dashboard</button></a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DB_COLUMNS = [
+            "", "symbol", "exchange", "trade_date", "txn_type",
+            "quantity", "price", "order_id", "external_trade_id", "fees", "net_amount",
+            "isin", "segment", "series"
+        ];
+
+        let currentHeaders = [];
+        let existingMappings = {}; // db_column -> csv_column
+        let sampleData = [];
+
+        async function loadBrokers() {
+            try {
+                const res = await fetch('/api/config/brokers');
+                const brokers = await res.json();
+                const select = document.getElementById('provider');
+                select.innerHTML = '<option value="">-- Choose Broker --</option>';
+                brokers.forEach(b => {
+                    const opt = document.createElement('option');
+                    opt.value = b;
+                    opt.textContent = b;
+                    select.appendChild(opt);
+                });
+            } catch (e) {
+                console.error("Failed to load brokers", e);
+            }
+        }
+        window.onload = loadBrokers;
+
+        function showStep(n) {
+            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+            document.getElementById('step' + n).classList.add('active');
+        }
+
+        async function goToStep2() {
+            const prov = document.getElementById('provider').value;
+            if (!prov) return alert("Please select a Broker");
+
+            // Try fetch existing config & mappings
+            try {
+                const configRes = await fetch(`/api/config/broker_config?provider=${prov}`);
+                const config = await configRes.json();
+                if (config && config.skip_rows !== undefined) document.getElementById('skipRows').value = config.skip_rows;
+                if (config && config.skip_cols !== undefined) document.getElementById('skipCols').value = config.skip_cols;
+
+                const mappingRes = await fetch(`/api/config/mappings?provider=${prov}`);
+                const mappings = await mappingRes.json();
+                existingMappings = {};
+                if (Array.isArray(mappings) && mappings.length > 0) {
+                    mappings.forEach(m => {
+                        existingMappings[m.db_column] = m.csv_column;
+                    });
+                    document.getElementById('directMapBtn').style.display = 'block';
+                } else {
+                    document.getElementById('directMapBtn').style.display = 'none';
+                }
+            } catch (e) {
+                document.getElementById('directMapBtn').style.display = 'none';
+            }
+
+            showStep(2);
+        }
+
+        function skipToStep3() {
+            // Generate headers from existing mappings
+            const headers = Object.values(existingMappings);
+            renderMappingTable(headers, []);
+            showStep(3);
+        }
+
+        async function goToStep3() {
+            const fileInput = document.getElementById('csvFile');
+            if (!fileInput.files[0]) return alert("Please upload a file");
+
+            const skipRows = document.getElementById('skipRows').value;
+            const skipCols = document.getElementById('skipCols').value;
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('skip_rows', skipRows);
+            formData.append('skip_cols', skipCols);
+
+            try {
+                const res = await fetch('/api/config/preview_csv', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                renderMappingTable(data.headers, data.samples);
+                showStep(3);
+            } catch (e) {
+                const errBox = document.getElementById('previewError');
+                errBox.innerText = e.message;
+                errBox.style.display = 'block';
+            }
+        }
+
+        function renderMappingTable(headers, samples) {
+            currentHeaders = headers;
+            const tbody = document.getElementById('mappingBody');
+            tbody.innerHTML = '';
+
+            headers.forEach((h, idx) => {
+                const sampleVal = samples[0] ? samples[0][h] : '';
+
+                // Try to find if this CSV header is already mapped
+                let selected = "";
+                for (const dbCol in existingMappings) {
+                    if (existingMappings[dbCol] === h) {
+                        selected = dbCol;
+                        break;
+                    }
+                }
+
+                if (!selected) {
+                    // Auto-guess
+                    const hLower = h.toLowerCase().replace(/_/g, '');
+                    if (hLower.includes('symbol') || hLower.includes('script')) selected = "symbol";
+                    else if (hLower.includes('isin')) selected = "isin";
+                    else if (hLower.includes('date') || hLower.includes('time')) selected = "trade_date";
+                    else if (hLower.includes('price') || hLower.includes('rate')) selected = "price";
+                    else if (hLower.includes('qty') || hLower.includes('quant')) selected = "quantity";
+                    else if (hLower.includes('type') || hLower.includes('buy') || hLower.includes('side')) selected = "txn_type";
+                    else if (hLower.includes('exchange')) selected = "exchange";
+                }
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><b>${h}</b></td>
+                    <td class="sample-val">${sampleVal || '-'}</td>
+                    <td>
+                        <select class="map-select" data-csv="${h}">
+                            ${DB_COLUMNS.map(c => `<option value="${c}" ${c === selected ? 'selected' : ''}>${c || '--- Ignore ---'}</option>`).join('')}
+                        </select>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function saveConfiguration() {
+            const provider = document.getElementById('provider').value;
+            const skipRows = document.getElementById('skipRows').value;
+            const skipCols = document.getElementById('skipCols').value;
+
+            // 1. Save Broker Config
+            await fetch('/api/config/broker_config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ provider, skip_rows: skipRows, skip_cols: skipCols })
+            });
+
+            // 2. Save Mappings
+            const selects = document.querySelectorAll('.map-select');
+            for (const sel of selects) {
+                const dbCol = sel.value;
+                const csvCol = sel.dataset.csv;
+
+                if (dbCol) {
+                    await fetch('/api/config/mappings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ provider, csv_column: csvCol, db_column: dbCol })
+                    });
+                }
+            }
+
+            document.getElementById('successProv').innerText = provider;
+            showStep(4);
+        }
+    </script>
+</body>
+
+</html>

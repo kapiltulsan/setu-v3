@@ -4,11 +4,18 @@ Setu V3 is a Flask-based application for algorithmic trading and portfolio manag
 
 ## 🏗 Architecture & Terminology
 - **Reporting Panel (Port 3000)**: The frontend dashboard interface (Next.js).
-- **Admin Panel (Port 5000)**: The backend API and Flask-based reporting views (HTTPS).
+    - *Features*: Portfolio Summary, Asset Allocation, Live Holdings, Tradebook Upload.
+- **Admin Panel (Port 5000)**: The backend API and Flask-based management console.
+    - *Features*: System Stats, Automated Jobs, Log Viewer, **System Configuration (CSV Mappings)**.
 - **Stock Scanner**: Define and run algorithmic strategies on daily/weekly data.
-  - **Layer 1 (Universe)**: Selects stocks based on Index membership (with optional Index-level filtering).
-  - **Layer 2 (Primary Filter)**: Fast, mandatory filtering on price/trend.
-  - **Layer 3 (Refiner)**: Specific entry signal detection (RSI, MACD, etc).
+    - **Layer 1 (Universe)**: Selects stocks based on Index membership (with optional Index-level filtering).
+    - **Layer 2 (Primary Filter)**: Fast, mandatory filtering on price/trend.
+    - **Layer 3 (Refiner)**: Specific entry signal detection (RSI, MACD, etc).
+
+## 🌟 Key Features
+- **Multi-Broker Support**: Import tradebooks from Zerodha, Angel One, etc. using a dynamic mapping wizard.
+- **Multi-User Capable**: Supports tracking distinct portfolios (e.g., FAMILY, PERSONAL) via Account IDs.
+- **Automated Sync**: Midnight jobs sync daily candles and constituent data automagically.
 
 ## 🚀 Setup Instructions
 
@@ -41,6 +48,7 @@ cp .env.example .env
 Edit `.env` and fill in your details:
 - **DB_HOST, DB_NAME, DB_USER, DB_PASS**: Your Postgres credentials.
 - **KITE_API_KEY, KITE_API_SECRET**: Your Zerodha API keys.
+- **KAP_ANGEL_LONG_API_KEY, KAP_ANGEL_LONG_API_SECRET**: Your AngelOne API keys.
 
 ### 3. Database Setup
 Ensure your Postgres user has permissions to create schemas and extensions.

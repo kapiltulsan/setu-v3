@@ -13,6 +13,13 @@ To get an API Key, your code must follow this path:
 5.  **Fetch:** Load `os.environ[f"API_KEY_{credential_id}"]`.
 
 ## 3. Strict Broker Separation
-- **Dhan** code must ONLY run if the broker in JSON is "DHAN".
-- **Angel One** code must ONLY run if the broker in JSON is "ANGEL_ONE".
+- Dhan code must ONLY run if the broker in JSON is "DHAN".
+- Angel One code must ONLY run if the broker in JSON is "ANGEL_ONE".
 - Do not assume "Kapil" always uses "Zerodha". Check the JSON.
+
+## 4. Complexity & Planning
+If a solution or task starts getting complex (e.g., involving multiple system checks, multiple scripts, or potential side effects):
+- **STOP immediately**.
+- Create a clear technical implementation plan.
+- Share the plan with the user and wait for explicit verification/approval before proceeding.
+- This is to avoid wasting resources and ensure the approach aligns with user expectations.

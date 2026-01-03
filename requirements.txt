@@ -12,3 +12,7 @@ pandas
 numpy
 APScheduler
 croniter
+smartapi-python
+pyotp
+logzero
+websocket-client

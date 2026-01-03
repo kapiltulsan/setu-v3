@@ -26,11 +26,12 @@ load_dotenv() # Load env before importing modules that might use them (like scan
 
 # Import Modules
 from modules.logs import logs_bp, get_recent_logs
-from modules.auth import auth_bp, get_token_status, get_kite_url
+from modules.auth import auth_bp, get_token_status, get_kite_url, get_angel_url
 from modules.charts import charts_bp
 from modules.jobs import jobs_bp
 from modules.scanners import scanners_bp # NEW
 from modules.scheduler import scheduler_bp
+# Trigger Restart
 
 load_dotenv()
 
@@ -104,20 +105,15 @@ def dashboard():
     # Get Data for Initial Render
     logs, log_dir = get_recent_logs()
     sys_health = get_system_stats()
+    auth_status = get_token_status()
+    auth_status["ZERODHA"]["login_url"] = get_kite_url()
+    auth_status["ANGEL_ONE"]["login_url"] = get_angel_url()
     
     return render_template('dashboard.html', 
                          host_ip=host_ip,
                          logs={'data': logs, 'path': log_dir},
                          sys_health=sys_health,
-                         auth={
-                             'valid': get_token_status()[0],
-                             'date': get_token_status()[1],
-                             'login_url': get_kite_url()
-                         })
+                         auth_status=auth_status)
 
-if __name__ == '__main__':
-    # Local Dev Run
-    print("Starting Setu V3 Admin Dashboard...")
-    #app.run(host='0.0.0.0', port=5000, debug=True, ssl_context='adhoc')
-    app.run(host='0.0.0.0', port=5000, debug=True, ssl_context=('cert.pem', 'key.pem'))
+    app.run(host='0.0.0.0', port=5000, debug=True)
 #

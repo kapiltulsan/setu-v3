@@ -37,7 +37,7 @@ cd setu-v3
 # Setup Python Environment
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt  # Includes smartapi-python
 
 # Setup Frontend
 cd frontend

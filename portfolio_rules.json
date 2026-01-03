@@ -4,9 +4,9 @@
     "description": "Family Investment Policy & Routing Rules",
     "system_config": {
         "ohlc_provider": {
-            "user_ref": "komal",
-            "account_ref": "investing_passive",
-            "description": "Using Komal's Zerodha API for free OHLC data"
+            "user_ref": "kapil",
+            "account_ref": "trade_execution",
+            "description": "Using Kapil's AngelOne API for free OHLC data"
         }
     },
     "api_mapping": {

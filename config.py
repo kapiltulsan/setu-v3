@@ -19,14 +19,19 @@ def load_rules():
 PORTFOLIO_RULES = load_rules()
 
 def get_operational_accounts():
+    """Returns a list of operational account configs."""
+    return get_all_accounts(only_operational=True)
+
+def get_all_accounts(only_operational=False):
     """
-    Returns a list of operational account configs.
+    Returns a list of all account configs from rules.
     Yields: (user, account_type, account_id, details)
     """
     accounts = PORTFOLIO_RULES.get("accounts", {})
     for user, user_accounts in accounts.items():
         for acc_type, details in user_accounts.items():
-            if details.get("is_operational", False):
-                # Account ID convention: user_type (e.g., kapil_trading)
-                account_id = f"{user}_{acc_type}"
-                yield user, acc_type, account_id, details
+            if only_operational and not details.get("is_operational", False):
+                continue
+            # Account ID convention: user_type (e.g., kapil_trading)
+            account_id = f"{user}_{acc_type}"
+            yield user, acc_type, account_id, details

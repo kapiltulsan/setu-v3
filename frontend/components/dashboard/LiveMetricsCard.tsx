@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { TrendingUp, TrendingDown, RefreshCw, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 
 interface PortfolioSummary {
@@ -53,6 +54,12 @@ const LiveMetricsCard = () => {
         return "₹" + Number(val).toLocaleString('en-IN', { maximumFractionDigits: 0 });
     };
 
+    const toggleVisibility = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setVisible(!visible);
+    };
+
     if (loading && !data) {
         return (
             <div className="col-span-12 md:col-span-6 lg:col-span-3 bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm animate-pulse flex flex-col justify-between">
@@ -79,7 +86,10 @@ const LiveMetricsCard = () => {
     const isPositive = (data?.pnl_absolute || 0) >= 0;
 
     return (
-        <div className="col-span-12 md:col-span-6 lg:col-span-3 bg-zinc-900 dark:bg-black rounded-3xl p-6 border border-zinc-800 dark:border-zinc-800 shadow-xl flex flex-col justify-between relative overflow-hidden">
+        <Link
+            href="/reporting"
+            className="col-span-12 md:col-span-6 lg:col-span-3 bg-zinc-900 dark:bg-black rounded-3xl p-6 border border-zinc-800 dark:border-zinc-800 shadow-xl flex flex-col justify-between relative overflow-hidden cursor-pointer hover:scale-[1.01] transition-transform group"
+        >
             {/* Background Glow */}
             <div className={`absolute top-0 right-0 w-32 h-32 bg-${isPositive ? 'emerald' : 'rose'}-500/10 blur-[50px] rounded-full`}></div>
 
@@ -88,8 +98,8 @@ const LiveMetricsCard = () => {
                     <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-zinc-400 text-sm font-medium">Total Portfolio Value</h3>
                         <button
-                            onClick={() => setVisible(!visible)}
-                            className="text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none"
+                            onClick={toggleVisibility}
+                            className="text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none z-20"
                             title={visible ? "Hide Balance" : "Show Balance"}
                         >
                             {visible ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -129,11 +139,11 @@ const LiveMetricsCard = () => {
                 <div className="w-full bg-zinc-800 rounded-full h-1.5 mt-3 overflow-hidden">
                     <div
                         className={`h-full rounded-full ${isPositive ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-rose-600 to-rose-400'}`}
-                        style={{ width: '100%' }} // Dynamic width could be implemented based on goal
+                        style={{ width: '100%' }}
                     ></div>
                 </div>
             </div>
-        </div>
+        </Link>
     );
 };
 
