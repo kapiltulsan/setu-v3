@@ -8,11 +8,23 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'https://localhost:5000/api/:path*',
+        destination: 'http://localhost:5000/api/:path*',
       },
       {
         source: '/callback',
-        destination: 'https://localhost:5000/callback',
+        destination: 'http://localhost:5000/callback',
+      },
+      {
+        source: '/login/:path*',
+        destination: 'http://localhost:5000/login/:path*',
+      },
+      {
+        source: '/login_angel/:path*',
+        destination: 'http://localhost:5000/login_angel/:path*',
+      },
+      {
+        source: '/callback_angel',
+        destination: 'http://localhost:5000/callback_angel',
       },
     ];
   },

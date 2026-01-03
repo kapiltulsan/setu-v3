@@ -46,28 +46,44 @@ def fetch_all_constituents(cur: cursor) -> list[tuple[str, str]]:
     logger.log("info", f"Loaded {len(sources)} index configurations from DB.")
 
     # 2. Loop through DB results
+    import time
     for index_name, url in sources:
         logger.log("info", f"Fetching {index_name}...", url=url)
-        try:
-            response = requests.get(url, headers=headers, timeout=15)
-            
-            if response.status_code == 200:
-                df = pd.read_csv(io.StringIO(response.text))
-                df.columns = [c.strip() for c in df.columns]
-
-                if 'Symbol' in df.columns:
-                    symbols = df['Symbol'].unique().tolist()
-                    for sym in symbols:
-                        all_mappings.append((index_name, sym))
-                    logger.log("info", f"Parsed {index_name}", count=len(symbols))
-                else:
-                    logger.log("warning", f"Column 'Symbol' not found in {index_name}")
-            else:
-                logger.log("warning", f"Could not download {index_name} (Status: {response.status_code})")
+        
+        max_retries = 3
+        success = False
+        
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = requests.get(url, headers=headers, timeout=30) # Increased timeout
                 
-        except Exception as e:
-            logger.log("error", f"Failed to process {index_name}", error=str(e))
+                if response.status_code == 200:
+                    df = pd.read_csv(io.StringIO(response.text))
+                    df.columns = [c.strip() for c in df.columns]
 
+                    if 'Symbol' in df.columns:
+                        symbols = df['Symbol'].unique().tolist()
+                        for sym in symbols:
+                            all_mappings.append((index_name, sym))
+                        logger.log("info", f"Parsed {index_name}", count=len(symbols))
+                        success = True
+                        break # Success
+                    else:
+                        logger.log("warning", f"Column 'Symbol' not found in {index_name}")
+                        success = True # Fetched but invalid content, don't retry
+                        break
+                else:
+                    logger.log("warning", f"Retry {attempt}/{max_retries}: Status {response.status_code} for {index_name}")
+            
+            except Exception as e:
+                logger.log("warning", f"Retry {attempt}/{max_retries}: Failed {index_name} - {str(e)}")
+            
+            if attempt < max_retries:
+                time.sleep(2) # Backoff
+        
+        if not success:
+            logger.log("error", f"Permanently failed to download {index_name} after {max_retries} attempts.")
+            
     return all_mappings
 
 def sync_constituents() -> None:

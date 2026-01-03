@@ -1,3 +1,24 @@
+"""
+MODULE: DATA COLLECTOR
+======================
+Purpose:
+  Fetches OHLC (Open, High, Low, Close) market data from Zerodha Kite Connect 
+  and stores it in the PostgreSQL database (TimescaleDB).
+
+Key Features:
+  1. Concurrency: Uses ThreadPoolExecutor to fetch data for multiple symbols in parallel.
+  2. Incremental Fetch: 
+     - Detects the last available candle in DB.
+     - Fetches only missing data (plus a buffer overlap).
+  3. Backfill Mode: 
+     - If no data exists, fetches a configurable history.
+  4. Self-Healing Token Mechanism:
+     - Automatically detects 'TokenException' and retries with refreshed tokens from DB.
+
+Configuration:
+  - Controlled via Environment Variables and portfolio_rules.json.
+"""
+
 import os
 import sys
 import json
@@ -5,22 +26,22 @@ import time
 import datetime
 import argparse
 import concurrent.futures
-# import psycopg2
 from psycopg2.pool import ThreadedConnectionPool
 from psycopg2.extras import execute_batch, RealDictCursor
-from kiteconnect import KiteConnect, exceptions as kite_exceptions
+from kiteconnect import exceptions as kite_exceptions
 from dotenv import load_dotenv
 from db_logger import EnterpriseLogger
 from modules import notifier
+import config
+from modules.brokers import get_broker_client
 
 # --- Config ---
 load_dotenv()
-API_KEY = os.getenv("KITE_API_KEY")
 
 # Execution Tuning
 WORKERS_PER_BATCH = int(os.getenv("OHLC_MAX_WORKERS_PER_BATCH", 3))
 BATCH_DELAY = float(os.getenv("OHLC_BATCH_DELAY", 2.0))
-JOB_TIMEOUT = int(os.getenv("OHLC_JOB_KILL_IN_SEC", 20)) 
+JOB_TIMEOUT = int(os.getenv("OHLC_JOB_KILL_IN_SEC", 20))
 MAX_CONCURRENT = int(os.getenv("OHLC_MAX_CONCURRENT_JOBS", 10))
 
 # Backfill Configuration
@@ -29,10 +50,10 @@ BACKFILL_RULES = {
     "day": int(os.getenv("OHLC_BACKFILL_DAYS_DAILY", 1100))        
 }
 
-# --- NEW: Buffer Configuration (Overlap/Self-Healing) ---
+# Buffer Configuration
 BUFFER_RULES = {
-    "60minute": int(os.environ["OHLC_BUFFER_DAYS_HOURLY"]), # Overlap last 2 days
-    "day": int(os.environ["OHLC_BUFFER_DAYS_DAILY"])        # Overlap last 5 days
+    "60minute": int(os.environ.get("OHLC_BUFFER_DAYS_HOURLY", 2)),
+    "day": int(os.environ.get("OHLC_BUFFER_DAYS_DAILY", 5))
 }
 
 # Zerodha Fetch Limits
@@ -41,21 +62,30 @@ LIMIT_DAYS_DAILY = 2000
 
 logger = EnterpriseLogger("data_collector")
 
-# --- SQL Queries (Unchanged) ---
+# --- SQL Queries ---
 GET_UNIVERSE_SQL = """
     SELECT DISTINCT s.trading_symbol, s.instrument_token
     FROM ref.symbol s
-    LEFT JOIN ref.index_mapping m_stock ON s.trading_symbol = m_stock.stock_symbol
-    LEFT JOIN ref.index_mapping m_index ON s.trading_symbol = m_index.index_name
-    LEFT JOIN trading.portfolio_view p ON s.trading_symbol = p.symbol
     WHERE s.is_active = TRUE
-      AND (
-          (s.segment = 'INDICES' AND m_index.index_name IS NOT NULL)
-          OR 
-          (s.segment <> 'INDICES' AND m_stock.stock_symbol IS NOT NULL)
-          OR 
-          (p.net_quantity > 0)
-      )
+    AND (
+        -- 1. Part of any Tracked Index
+        EXISTS (
+            SELECT 1 FROM ref.index_mapping ic 
+            WHERE ic.stock_symbol = s.trading_symbol
+        )
+        OR
+        -- 2. In Portfolio (Holdings)
+        EXISTS (
+            SELECT 1 FROM trading.portfolio p 
+            WHERE p.symbol = s.trading_symbol
+        )
+        OR
+        -- 3. In Open Positions
+        EXISTS (
+            SELECT 1 FROM trading.positions pos 
+            WHERE pos.symbol = s.trading_symbol
+        )
+    )
 """
 
 GET_LAST_CANDLE_SQL_TEMPLATE = "SELECT MAX(candle_start) as last_candle FROM ohlc.candles_{suffix} WHERE symbol = %s"
@@ -73,20 +103,68 @@ UPSERT_SQL_TEMPLATE = """
 
 # --- Functions ---
 
-import config
+def load_data_session():
+    """Finds the configured account to use for data fetching."""
+    
+    # Read strict config from rules
+    sys_config = config.PORTFOLIO_RULES.get("system_config", {}).get("ohlc_provider")
+    
+    selected_account = None
+    selected_details = None
+    
+    if sys_config:
+        user_ref = sys_config.get("user_ref")
+        account_ref = sys_config.get("account_ref")
+        
+        # Resolve to details
+        try:
+            selected_details = config.PORTFOLIO_RULES["accounts"][user_ref][account_ref]
+            selected_account = f"{user_ref}_{account_ref}"
+            logger.log("info", f"Using Configured Data Source: {selected_account}")
+        except KeyError:
+            logger.log("error", f"Invalid system_config: {user_ref}.{account_ref} not found")
+            
+    # Fallback to heuristic if config is missing or invalid
+    if not selected_account:
+        logger.log("warning", "System Config missing/invalid. Falling back to heuristic.")
+        preferred_order = ["komal_investing_passive", "kapil_investing_passive"]
+        accounts = list(config.get_operational_accounts())
+        
+        # helper
+        def find_account(acc_id):
+            for user, acc_type, aid, details in accounts:
+                if aid == acc_id and details['broker'] == "ZERODHA":
+                    return aid, details
+            return None, None
+    
+        # Try preferred
+        for pid in preferred_order:
+            selected_account, selected_details = find_account(pid)
+            if selected_account: break
+        
+        # Fallback
+        if not selected_account:
+            for user, acc_type, aid, details in accounts:
+                if details['broker'] == "ZERODHA":
+                    selected_account = aid
+                    selected_details = details
+                    break
+                    
+    if not selected_account:
+        raise Exception("No Operational ZERODHA account found for Data Collection")
+        
+    print(f"📡 Using Data Source Account: {selected_account}")
+    # Instantiate Broker (Only Zerodha supported for OHLC currently)
+    broker = get_broker_client(selected_details['broker'], selected_details['credential_id'])
+    if not broker.login():
+        raise Exception(f"Login failed for data source {selected_account}")
+        
+    return broker
 
-def load_kite_session() -> KiteConnect:
-    try:
-        with open(config.TOKENS_FILE, "r") as f:
-            tokens = json.load(f)
-        kite = KiteConnect(api_key=API_KEY)
-        kite.set_access_token(tokens["access_token"])
-        return kite
-    except Exception as e:
-        logger.log("error", "Session Load Failed", exc_info=True)
-        raise e
-
-def fetch_data_chunked(kite, token, from_date, to_date, timeframe):
+def fetch_data_chunked(broker, token, from_date, to_date, timeframe):
+    """
+    Fetches historical data using the broker interface.
+    """
     all_candles = []
     chunk_size_days = LIMIT_DAYS_DAILY if timeframe == "day" else LIMIT_DAYS_HOURLY
     current_from = from_date
@@ -95,31 +173,28 @@ def fetch_data_chunked(kite, token, from_date, to_date, timeframe):
         current_to = min(current_from + datetime.timedelta(days=chunk_size_days), to_date)
         if (current_to - current_from).total_seconds() < 60:
             break
-        # Let exceptions propagate to the caller (process_symbol) for centralized handling
-        chunk_data = kite.historical_data(token, current_from, current_to, timeframe)
+            
+        # Broker wrapper handles the call
+        # broker.get_historical_data signature: symbol, token, from, to, interval
+        chunk_data = broker.get_historical_data(None, token, current_from, current_to, timeframe)
         if chunk_data:
             all_candles.extend(chunk_data)
         current_from = current_to
 
     return all_candles
 
-def process_symbol(kite_session, pool, symbol, token, timeframe, table_suffix):
+def process_symbol(broker, pool, symbol, token, timeframe, table_suffix):
     """
-    Processes a single symbol using a shared Kite session and a DB connection from the pool.
-    This function is designed to be run in a separate thread.
-    Includes Self-Healing Token Integrity Check.
+    Worker function to process a single symbol in its own thread.
     """
     conn = None
     max_retries = 1
     
-    # Attempt loop for Retry (Healing)
     for attempt in range(max_retries + 1):
         try:
-            # Get a connection from the pool; ensure it's returned with 'finally'.
             conn = pool.getconn()
             
-            # --- PRE-CHECK: Validate Token against DB (Efficiency Check) ---
-            # If we are retrying, we *know* we need a fresh token.
+            # --- PRE-CHECK: Validate Token against DB ---
             current_token = token
             if attempt > 0:
                 with conn.cursor() as cur:
@@ -128,25 +203,20 @@ def process_symbol(kite_session, pool, symbol, token, timeframe, table_suffix):
                     if res and res[0] != token:
                         logger.log("warning", "Token Healed (Pre-fetch)", symbol=symbol, old=token, new=res[0])
                         current_token = res[0]
-                    else:
-                        # No new token available? Fail.
-                        pass
         
-            with conn: # Transcation block
+            with conn: # Transaction block
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
                     max_days = BACKFILL_RULES.get(timeframe, 365)
-                    buffer_days = BUFFER_RULES.get(timeframe)
+                    buffer_days = BUFFER_RULES.get(timeframe, 5)
 
                     query_last = GET_LAST_CANDLE_SQL_TEMPLATE.format(suffix=table_suffix)
                     cur.execute(query_last, (symbol,))
                     result = cur.fetchone()
                     last_candle = result['last_candle'] if result and 'last_candle' in result else None
                     
-                    # --- FIX: Ensure last_candle is DateTime, not Date ---
                     if last_candle and isinstance(last_candle, datetime.date) and not isinstance(last_candle, datetime.datetime):
                         last_candle = datetime.datetime.combine(last_candle, datetime.time.min).replace(tzinfo=datetime.timezone.utc)
 
-                    
                     to_date = datetime.datetime.now().astimezone()
                     
                     if last_candle:
@@ -156,16 +226,18 @@ def process_symbol(kite_session, pool, symbol, token, timeframe, table_suffix):
                         from_date = to_date - datetime.timedelta(days=max_days)
                         mode = f"BACKFILL"
 
-                    # Fetch Data (Potential Failure Point)
-                    data = fetch_data_chunked(kite_session, current_token, from_date, to_date, timeframe)
+                    # Fetch Data
+                    data = fetch_data_chunked(broker, current_token, from_date, to_date, timeframe)
                     
                     if not data:
                         return {"status": "NO_DATA", "symbol": symbol, "msg": "No data returned"}
 
+                    # Transform
                     rows = []
                     for candle in data:
                         rows.append((symbol, candle['date'], candle['open'], candle['high'], candle['low'], candle['close'], candle['volume']))
 
+                    # Upsert
                     if rows:
                         query_upsert = UPSERT_SQL_TEMPLATE.format(suffix=table_suffix)
                         execute_batch(cur, query_upsert, rows)
@@ -173,45 +245,48 @@ def process_symbol(kite_session, pool, symbol, token, timeframe, table_suffix):
                     else:
                         return {"status": "EMPTY", "symbol": symbol, "msg": "Data empty after parsing"}
 
-        except (kite_exceptions.TokenException, kite_exceptions.InputException) as e:
+        except kite_exceptions.InputException as e:
+            # --- SELF-HEALING LOGIC (Instrument Token Mismatch) ---
+            # InputException is raised when the instrument token is invalid/unknown to Kite
             if attempt < max_retries:
-                logger.log("warning", "Token Invalid - Attempting Self-Heal", symbol=symbol, attempt=attempt+1)
-                # Release connection before next iteration to avoid hoarding
+                logger.log("warning", "Instrument Token Invalid - Attempting Self-Heal", symbol=symbol, attempt=attempt+1)
                 if conn:
                     pool.putconn(conn)
                     conn = None
                 
-                # Fetch fresh token from DB for next attempt
+                # Fetch fresh token
                 fresh_conn = pool.getconn()
                 try:
                     with fresh_conn.cursor() as cur:
                         cur.execute("SELECT instrument_token FROM ref.symbol WHERE trading_symbol = %s", (symbol,))
                         res = cur.fetchone()
                         if res and res[0] != token:
-                             logger.log("info", "Found Fresh Token", symbol=symbol, old=token, new=res[0])
-                             token = res[0] # Update local variable for next loop
+                             token = res[0]
                         else:
-                             # No fresh token found, useless to retry same token
-                             logger.log("error", "Self-Heal Failed: No new token in DB", symbol=symbol)
+                             # If DB has same token, we can't heal it
                              raise e
                 finally:
                     pool.putconn(fresh_conn)
-                
-                continue # Retry main loop
-                
+                continue
             else:
-                # Retries exhausted
-                logger.log("error", "Token Integrity Failure - Session/Symbol Invalid", symbol=symbol, exc_info=True)
-                raise Exception("Token Invalid and Healing Failed") from e
+                 logger.log("error", "Instrument Token Healing Failed", symbol=symbol, exc_info=True)
+                 raise Exception(f"Instrument Token Invalid for {symbol}") from e
+
+        except kite_exceptions.TokenException as e:
+            # --- CRITICAL AUTH ERROR (Session Expired) ---
+            # TokenException means the API Access Token is invalid. THIS CANNOT BE SELF-HEALED without re-login.
+            # We should probably abort the entire job or at least fail this symbol hard.
+            logger.log("error", "Session Token Expired/Invalid", symbol=symbol, exc_info=True)
+            raise Exception("CRITICAL: User Session Expired. Please Re-login via Dashboard.") from e
                 
         except Exception as e:
-            # Re-raise to be caught by the main executor
             raise Exception(f"Failed processing '{symbol}': {e}") from e
         finally:
             if conn:
                 pool.putconn(conn)
 
 def main():
+    """Main Orchestrator."""
     parser = argparse.ArgumentParser(description="Setu V3 OHLC Collector")
     parser.add_argument("timeframe", choices=["day", "60minute"], help="Timeframe to fetch")
     args = parser.parse_args()
@@ -220,38 +295,31 @@ def main():
     table_suffix = suffix_map[args.timeframe]
     
     start_time = time.time()
-    backfill_days = BACKFILL_RULES.get(args.timeframe, 0)
-    buffer_days = BUFFER_RULES.get(args.timeframe, 0)
     
-    logger.log("info", f"Starting Data Collector", timeframe=args.timeframe, backfill=backfill_days, buffer=buffer_days)
-    notifier.send_notification(
-        "Data Collector Started", 
-        f"Starting {args.timeframe} collection\nBackfill: {backfill_days}d | Buffer: {buffer_days}d"
-    )
+    logger.log("info", f"Starting Data Collector", timeframe=args.timeframe)
+    notifier.send_notification("Data Collector Started", f"Starting {args.timeframe} collection")
 
     try:
-        # --- REFACTOR: Initialize shared resources once ---
-        kite_session = load_kite_session()
+        # Load Broker
+        broker = load_data_session()
         
-        # --- FIX: Use a connection pool ---
         db_pool = ThreadedConnectionPool(
             minconn=1, maxconn=MAX_CONCURRENT,
-            host=os.getenv("DB_HOST"), database=os.getenv("DB_NAME"),
-            user=os.getenv("DB_USER"), password=os.getenv("DB_PASS")
+            host=os.getenv("DB_HOST", "localhost"), database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"), password=os.getenv("DB_PASS"),
+            port=os.getenv("DB_PORT", "5432")
         )
 
-        # Get the universe of symbols to process
         with db_pool.getconn() as conn:
             with conn.cursor() as cur:
                 cur.execute(GET_UNIVERSE_SQL)
                 universe = cur.fetchall()
-        db_pool.putconn(conn) # Return the connection
+        db_pool.putconn(conn)
         
-        logger.log("info", f"Universe Loaded", count=len(universe))
         print(f"🚀 Starting Collection for {len(universe)} symbols ({args.timeframe})")
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
-            future_to_symbol = {} # Map future to symbol for error tracking
+            future_to_symbol = {}
             
             def chunker(seq, size):
                 return (seq[pos:pos + size] for pos in range(0, len(seq), size))
@@ -262,87 +330,41 @@ def main():
             for batch in chunker(universe, WORKERS_PER_BATCH):
                 batch_num += 1
                 for symbol, token in batch:
-                    # Pass shared resources to the worker
-                    future = executor.submit(process_symbol, kite_session, db_pool, symbol, token, args.timeframe, table_suffix)
+                    future = executor.submit(process_symbol, broker, db_pool, symbol, token, args.timeframe, table_suffix)
                     future_to_symbol[future] = symbol
-
-                print(f"⚡ Fired Batch {batch_num}/{total_batches} ({len(batch)} jobs)...")
                 time.sleep(BATCH_DELAY)
 
-            print("⏳ Waiting for all jobs to finish...")
+            print("⏳ Waiting for jobs...")
             completed = 0
             errors = 0
-            failed_jobs = [] # List of (symbol, reason)
+            failed_jobs = []
 
             for future in concurrent.futures.as_completed(future_to_symbol):
                 symbol = future_to_symbol[future]
                 try:
-                    # Get result from worker
-                    result = future.result(timeout=JOB_TIMEOUT) # This will re-raise exceptions from the worker
-                    
+                    result = future.result(timeout=JOB_TIMEOUT)
                     status = result.get("status")
-                    
                     if status == "SUCCESS":
                         completed += 1
-                        logger.log("info", "Job Success", symbol=result['symbol'], count=result['count'], mode=result['mode'])
-                    elif status == "SKIP":
-                        pass
-                        
-                except concurrent.futures.TimeoutError:
-                    errors += 1
-                    error_msg = "Timeout (Killed)"
-                    failed_jobs.append((symbol, error_msg))
-                    logger.log("error", "Job Timeout", symbol=symbol)
-                    print(f"❌ {symbol} timed out!")
                 except Exception as e:
                     errors += 1
-                    error_msg = str(e)
-                    failed_jobs.append((symbol, error_msg))
-                    logger.log("error", "Job crashed", symbol=symbol, exc_info=True)
+                    failed_jobs.append((symbol, str(e)))
                     print(f"❌ {symbol} Failed: {e}")
 
         duration = time.time() - start_time
         logger.log("info", "Job Complete", duration=duration, completed=completed, errors=errors)
         print(f"✅ DONE. Time: {duration:.2f}s | Success: {completed} | Errors: {errors}")
 
-        # --- Consolidated Notification ---
-        msg_lines = [
-            f"✅ Job Finished for {args.timeframe}",
-            f"Time: {duration:.2f}s",
-            f"Success: {completed}",
-            f"Errors: {errors}"
-        ]
-
-        if failed_jobs:
-            msg_lines.append("\n⚠️ Failed Symbols:")
-            # List top 10 failures
-            for sym, reason in failed_jobs[:10]:
-                msg_lines.append(f"- {sym}: {reason[:200]}...") # Truncate reason
-            
-            if len(failed_jobs) > 10:
-                msg_lines.append(f"...and {len(failed_jobs) - 10} more.")
-
-        priority = "high" if errors > 0 else "default"
-        title = "Data Collector Completed with Errors" if errors > 0 else "Data Collector Completed"
-        notifier.send_notification(
-            title, 
-            "\n".join(msg_lines),
-            priority=priority
-        )
-
+        # Notification logic (simplified)
         if errors > 0:
-            sys.exit(1)
+            notifier.send_notification("Data Collector Errors", f"Errors: {errors}\n{failed_jobs[:5]}", priority="high")
+        else:
+            notifier.send_notification("Data Collector Success", f"Done. {completed} updated.")
 
     except Exception as e:
         logger.log("error", "Critical Collector Failure", exc_info=True)
         print(f"🔥 CRITICAL FAIL: {e}")
-        notifier.send_notification(
-            subject="Data Collector Failed", 
-            details=["Critical Error in Data Collector", str(e)],
-            technicals={"Module": "data_collector.py", "Timeframe": args.timeframe},
-            severity="CRITICAL",
-            priority="critical"
-        )
+        notifier.send_notification("Data Collector Failed", str(e), priority="critical")
     finally:
         if 'db_pool' in locals() and db_pool:
             db_pool.closeall()

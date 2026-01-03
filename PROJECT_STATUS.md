@@ -41,8 +41,15 @@ This document tracks the major achievements, feature implementations, and system
   - **Live Preview**: Test conditions instantly on the latest market data.
   - **Natural Language Rules**: Complex logic translated into human-readable English.
   - **Data Persistence**: Results saved to `trading.scanner_results` for historical analysis.
+  - **Refinement (Jan 2026)**: Enhanced logic engine to support hybrid Indicator-vs-Value comparisons and "Index Gatekeeper" filtering.
 
----
+### 6. 🔐 AngelOne (SmartAPI) Integration
+**Goal**: Enable multi-broker support and redundant market data sources.
+- **Implemented**: Full authentication flow for AngelOne SmartAPI.
+- **Features**:
+  - **Dual Auth Gateway**: Dashboard now supports side-by-side login for both Zerodha and AngelOne.
+  - **Automated Token Handling**: AngelOne JWT tokens are saved and validated alongside Zerodha keys.
+  - **Dependency Updates**: Integrated `smartapi-python` with all necessary sub-dependencies.
 
 ## 🔮 Roadmap / Next Steps
 - [ ] **Advanced Charting**: Implementation of TradingView/Lightweight Charts in the Market Data tile.

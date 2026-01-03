@@ -1,20 +1,38 @@
+/**
+ * Component: ScannerBuilder
+ * Purpose:
+ *   Provides a visual interface for users to define "Logic Conditions" for the stock scanner.
+ *   These conditions are serialized into JSON and sent to the backend (scanner_engine.py).
+ */
+
 "use client";
 
 import { useState } from "react";
 
 // --- TYPES ---
+
+/**
+ * LogicCondition
+ * Represents a single rule in the scanning strategy.
+ * Structure: Left Side (Indicator) [Operator] Right Side (Value OR Indicator)
+ * Example 1: Close (Daily) > 100
+ * Example 2: EMA (20) > SMA (50)
+ */
 export interface LogicCondition {
-    id: string; // FE only
-    // Left Side
-    indicator: string;
-    timeframe: string;
-    length?: number;
-    offset?: number;
+    id: string; // FE only (internal React key)
 
-    // Operator
-    operator: string;
+    // Left Side Definition
+    indicator: string;      // e.g., "close", "rsi", "ema"
+    timeframe: string;      // e.g., "1d", "60m"
+    length?: number;        // Optional param (e.g., 14 for RSI)
+    offset?: number;        // Lookback (0 = current, 1 = previous candle)
 
-    // Right Side (Value OR Indicator)
+    // Comparison Logic
+    operator: string;       // e.g., ">", "<", "=="
+
+    // Right Side Definition (Polymorphic)
+    // Case A: Static Value (right_indicator = "number") -> uses .value
+    // Case B: Dynamic Indicator -> uses .right_indicator, .right_timeframe, etc.
     value?: number;
     right_indicator?: string;
     right_timeframe?: string;
@@ -63,6 +81,10 @@ const OPERATORS = [
 // ... existing imports ...
 
 // --- HELPER: Explain Condition in English ---
+/**
+ * Converts a LogicCondition object into a human-readable English sentence.
+ * Useful for the "Natural Language Rules" feature.
+ */
 export const explainCondition = (c: LogicCondition): string => {
     const timeframes: Record<string, string> = {
         "60m": "Hourly", "1d": "Daily", "1w": "Weekly",
@@ -147,7 +169,7 @@ export default function ScannerBuilder({ value, onChange }: ScannerBuilderProps)
                             {idx > 0 && <span className="font-bold text-gray-400 mr-2">AND</span>}
                             {idx === 0 && <span className="font-bold text-gray-400 mr-2">Passes if</span>}
 
-                            {/* --- LEFT SIDE --- */}
+                            {/* --- LEFT SIDE: The Indicator to Check --- */}
                             <IndicatorPill
                                 indicator={condition.indicator}
                                 timeframe={condition.timeframe || "1d"}
@@ -165,11 +187,12 @@ export default function ScannerBuilder({ value, onChange }: ScannerBuilderProps)
                                 {OPERATORS.map(op => <option key={op.value} value={op.value}>{op.label}</option>)}
                             </select>
 
-                            {/* --- RIGHT SIDE --- */}
+                            {/* --- RIGHT SIDE: The Benchmark (Value or Another Indicator) --- */}
                             {/* Toggle between Value and Indicator */}
                             {condition.right_indicator === "number" ? (
                                 <div className="flex items-center gap-1 bg-green-50 text-green-700 font-medium px-2 py-1 rounded border border-green-200">
                                     <span className="text-xs text-green-500 uppercase tracking-tighter cursor-pointer hover:bg-green-100 px-1 rounded"
+                                        title="Click to Switch to Indicator Mode"
                                         onClick={() => updateCondition(condition.id, { right_indicator: "sma", right_timeframe: "1d", right_length: 20, value: undefined })}
                                     >
                                         Num
@@ -177,7 +200,10 @@ export default function ScannerBuilder({ value, onChange }: ScannerBuilderProps)
                                     <input
                                         type="number"
                                         value={condition.value ?? 0}
-                                        onChange={(e) => updateCondition(condition.id, { value: parseFloat(e.target.value) })}
+                                        onChange={(e) => {
+                                            const val = parseFloat(e.target.value);
+                                            updateCondition(condition.id, { value: isNaN(val) ? 0 : val });
+                                        }}
                                         className="w-20 bg-transparent border-b border-green-300 focus:outline-none focus:border-green-600 text-center"
                                     />
                                 </div>
@@ -232,6 +258,13 @@ export default function ScannerBuilder({ value, onChange }: ScannerBuilderProps)
 }
 
 // --- SUB-COMPONENT: PILL ---
+/**
+ * A reusable UI component (Pill) that encapsulates logic for selecting:
+ * - Timeframe (Day, Week, etc.)
+ * - Indicator Type (SMA, RSI, etc.)
+ * - Parameters (Length)
+ * - Offset (Lookback period)
+ */
 const IndicatorPill = ({ indicator, timeframe, length, offset, onChange, isRightSide = false }: any) => {
     // Helper to find spec
     const spec = INDICATORS.find(i => i.value === indicator) || INDICATORS[0];
@@ -284,7 +317,10 @@ const IndicatorPill = ({ indicator, timeframe, length, offset, onChange, isRight
                         type="number"
                         className="w-8 bg-transparent text-center border-b border-current focus:outline-none"
                         value={length || 14}
-                        onChange={(e) => onChange({ length: parseInt(e.target.value) })}
+                        onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            onChange({ length: isNaN(val) ? 14 : val });
+                        }}
                     />
                     )
                 </span>
@@ -302,7 +338,10 @@ const IndicatorPill = ({ indicator, timeframe, length, offset, onChange, isRight
                         type="number"
                         min="0"
                         value={offset || 0}
-                        onChange={(e) => onChange({ offset: parseInt(e.target.value) })}
+                        onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            onChange({ offset: isNaN(val) ? 0 : val });
+                        }}
                         className="w-full border rounded px-1 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500"
                     />
                 </div>

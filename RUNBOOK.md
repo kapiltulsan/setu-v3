@@ -17,14 +17,15 @@ The dashboard is the central command center. It is divided into 4 main tiles:
 - **Database**: Shows current DB size and active connections.
 - **Refresh Rate**: Use the dropdown (top-right) to change how often metrics update (default: 5s).
 
-### 2. 🔐 Zerodha Gateway (Auth)
-- **Status**:
+### 2. 🔐 Broker Gateways (Auth)
+- **Zerodha**:
   - `ONLINE`: Token is valid for today.
   - `OFFLINE`: Token is missing or expired.
-- **Action**:
-  - If `OFFLINE`, click **"🔄 Login to Zerodha"**.
-  - This redirects you to Kite. Login there, and you will be automatically returned to the dashboard.
-  - The token is saved to `tokens.json`.
+  - Click **"🔄 Login to Zerodha"** if offline.
+- **AngelOne**:
+  - Status is displayed alongside Zerodha.
+  - Click **"🔄 Login to Angel One"** to initiate SmartAPI publisher login.
+  - Tokens are saved to `tokens.json`.
 
 ### 3. ⏰ Platform Scheduler (Admin Panel)
 - **Location**: Admin Dashboard (`:5000`) > Scheduler Tile.

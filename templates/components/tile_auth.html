@@ -1,21 +1,39 @@
 <div class="card">
-    <h2>🔐 Zerodha Gateway</h2>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <span>Session Status</span>
-        <span class="badge {{ 'active' if auth.valid else 'expired' }}">
-            {{ "ONLINE" if auth.valid else "OFFLINE" }}
-        </span>
-    </div>
-    <div style="font-size: 0.9rem; color: #888; margin-bottom: 20px;">
-        Token Last Updated: <span style="color: #ccc;">{{ auth.date }}</span>
+    <h2>🔐 Broker Gateway</h2>
+    
+    <!-- Zerodha Section -->
+    <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px dashed #333;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <strong style="color: #ff5722;">Zerodha (Kite)</strong>
+            <span class="badge {{ 'active' if auth_status.ZERODHA.valid else 'expired' }}">
+                {{ "ONLINE" if auth_status.ZERODHA.valid else "OFFLINE" }}
+            </span>
+        </div>
+        <div style="font-size: 0.8rem; color: #888; margin-bottom: 10px;">
+            Updated: <span style="color: #ccc;">{{ auth_status.ZERODHA.date }}</span>
+        </div>
+        {% if not auth_status.ZERODHA.valid %}
+        <a href="{{ auth_status.ZERODHA.login_url }}" class="btn btn-login" style="padding: 8px;">🔄 Login Zerodha</a>
+        {% else %}
+        <a href="{{ auth_status.ZERODHA.login_url }}" style="color: #555; font-size: 0.8rem; text-decoration: none;">✅ Kite Active (Relogin)</a>
+        {% endif %}
     </div>
 
-    {% if not auth.valid %}
-    <a href="{{ auth.login_url }}" class="btn btn-login">🔄 Login to Zerodha</a>
-    {% else %}
-    <button class="btn btn-disabled">✅ System Active</button>
-    <div style="text-align: center; margin-top: 10px;">
-        <a href="{{ auth.login_url }}" style="color: #555; font-size: 0.8rem;">Force Re-Login</a>
+    <!-- AngelOne Section -->
+    <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <strong style="color: #64b5f6;">AngelOne (SmartAPI)</strong>
+            <span class="badge {{ 'active' if auth_status.ANGEL_ONE.valid else 'expired' }}">
+                {{ "ONLINE" if auth_status.ANGEL_ONE.valid else "OFFLINE" }}
+            </span>
+        </div>
+        <div style="font-size: 0.8rem; color: #888; margin-bottom: 10px;">
+            Updated: <span style="color: #ccc;">{{ auth_status.ANGEL_ONE.date }}</span>
+        </div>
+        {% if not auth_status.ANGEL_ONE.valid %}
+        <a href="{{ auth_status.ANGEL_ONE.login_url }}" class="btn btn-login" style="background-color: #0d47a1; padding: 8px;">🔄 Login AngelOne</a>
+        {% else %}
+        <a href="{{ auth_status.ANGEL_ONE.login_url }}" style="color: #555; font-size: 0.8rem; text-decoration: none;">✅ SmartAPI Active (Relogin)</a>
+        {% endif %}
     </div>
-    {% endif %}
 </div>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,6 +16,7 @@
             --red: #cf6679;
             --blue: #64b5f6;
         }
+
         body {
             font-family: 'Segoe UI', system-ui, sans-serif;
             background-color: var(--bg);
@@ -22,28 +24,107 @@
             margin: 0;
             padding: 20px;
         }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 25px; }
-        .header h1 { margin: 0; font-size: 1.6rem; }
-        .header a { color: var(--blue); text-decoration: none; font-size: 0.9rem; }
-        
-        .section { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); margin-bottom: 20px; }
-        h2 { margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; font-size: 1.1rem; color: var(--muted); }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
-        th { color: var(--muted); font-weight: normal; font-size: 0.9rem; }
-        
-        .up { color: var(--green); }
-        .down { color: var(--red); }
-        
-        .upload-zone { border: 2px dashed var(--border); padding: 30px; text-align: center; border-radius: 8px; cursor: pointer; transition: 0.2s; }
-        .upload-zone:hover { border-color: var(--blue); background: #252525; }
-        
-        .btn { padding: 8px 16px; background: var(--blue); color: #000; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn:disabled { background: var(--muted); cursor: not-allowed; }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.6rem;
+        }
+
+        .header a {
+            color: var(--blue);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .section {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            margin-top: 0;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            font-size: 1.1rem;
+            color: var(--muted);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: normal;
+            font-size: 0.9rem;
+        }
+
+        .up {
+            color: var(--green);
+        }
+
+        .down {
+            color: var(--red);
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border);
+            padding: 30px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--blue);
+            background: #252525;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: var(--blue);
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .btn:disabled {
+            background: var(--muted);
+            cursor: not-allowed;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -51,27 +132,36 @@
             <a href="/">← Back to Dashboard</a>
         </div>
 
-        <!-- Upload Section -->
         <div class="section">
             <h2>📥 Import Data</h2>
-            <div style="display: flex; gap: 20px;">
-                <div style="flex: 1;">
-                    <h3>Zerodha Tradebook</h3>
-                    <p style="font-size: 0.8rem; color: #888;">Upload 'tradebook-XXXX.csv' from Console</p>
-                    <form id="upload-zerodha" enctype="multipart/form-data">
-                        <input type="file" name="file" accept=".csv" required>
-                        <button type="submit" class="btn">Upload & Process</button>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <div>
+                    <label>Account Owner</label>
+                    <select id="user-select">
+                        <option value="">-- Loading --</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Account Category</label>
+                    <select id="type-select">
+                        <option value="">-- Select Owner First --</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Broker / Source</label>
+                    <select id="broker-select">
+                        <option value="">-- Select Category First --</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Tradebook File (CSV)</label>
+                    <form id="upload-generic" enctype="multipart/form-data">
+                        <input type="file" name="file" accept=".csv" required style="margin-top: 5px; width: 100%;">
+                        <button type="submit" class="btn">Process Trades</button>
                     </form>
-                    <div id="msg-zerodha" style="margin-top: 10px; font-size: 0.9rem;"></div>
                 </div>
-                <!-- 
-                <div style="flex: 1; opacity: 0.5;">
-                    <h3>Smallcase (Coming Soon)</h3>
-                    <p style="font-size: 0.8rem; color: #888;">Upload 'orders.csv'</p>
-                    <button disabled class="btn">Upload</button>
-                </div>
-                -->
             </div>
+            <div id="upload-msg" style="margin-top: 15px; font-size: 0.9rem; text-align: center;"></div>
         </div>
 
         <!-- Portfolio Table -->
@@ -97,12 +187,15 @@
                         <td>{{ "%.2f"|format(row['average_price']) }}</td>
                         <td>{{ "%.2f"|format(row['invested_value']) }}</td>
                         <td>
-                             <!-- Placeholder for live PnL if available -->
-                             -
+                            <!-- Placeholder for live PnL if available -->
+                            -
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No holdings found. Upload trades to generate portfolio.</td></tr>
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 20px; color: #666;">No holdings found.
+                            Upload trades to generate portfolio.</td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -110,25 +203,104 @@
     </div>
 
     <script>
-        document.getElementById('upload-zerodha').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const msgBox = document.getElementById('msg-zerodha');
-            const btn = e.target.querySelector('button');
-            
-            msgBox.innerHTML = '<span style="color: yellow;">Uploading...</span>';
-            btn.disabled = true;
-            
+        let allAccounts = [];
+        let allBrokers = [];
+
+        async function initSelectors() {
             try {
+                // Fetch Accounts
+                const accRes = await fetch('/api/config/accounts?all=true');
+                allAccounts = await accRes.json();
+
+                // Fetch All Brokers (for override/manual)
+                const brokerRes = await fetch('/api/config/brokers');
+                allBrokers = await brokerRes.json();
+
+                const userSelect = document.getElementById('user-select');
+                const users = [...new Set(allAccounts.map(a => a.user))];
+
+                userSelect.innerHTML = '<option value="">-- Choose Owner --</option>';
+                users.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u;
+                    opt.textContent = u.toUpperCase();
+                    userSelect.appendChild(opt);
+                });
+
+                userSelect.onchange = updateCategories;
+            } catch (e) {
+                console.error("Init failed", e);
+            }
+        }
+
+        function updateCategories() {
+            const user = document.getElementById('user-select').value;
+            const typeSelect = document.getElementById('type-select');
+
+            typeSelect.innerHTML = '<option value="">-- Choose Category --</option>';
+            if (!user) return;
+
+            const userAccs = allAccounts.filter(a => a.user === user);
+            userAccs.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a.type;
+                opt.textContent = a.type.replace(/_/g, ' ').toUpperCase();
+                typeSelect.appendChild(opt);
+            });
+
+            typeSelect.onchange = updateBrokers;
+        }
+
+        function updateBrokers() {
+            const user = document.getElementById('user-select').value;
+            const type = document.getElementById('type-select').value;
+            const brokerSelect = document.getElementById('broker-select');
+
+            brokerSelect.innerHTML = '<option value="">-- Choose Broker --</option>';
+            if (!user || !type) return;
+
+            const acc = allAccounts.find(a => a.user === user && a.type === type);
+            const defaultBroker = acc ? acc.broker : null;
+
+            allBrokers.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b;
+                opt.textContent = b;
+                if (b === defaultBroker) opt.selected = true;
+                brokerSelect.appendChild(opt);
+            });
+        }
+
+        window.onload = initSelectors;
+
+        document.getElementById('upload-generic').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = document.getElementById('user-select').value;
+            const type = document.getElementById('type-select').value;
+            const broker = document.getElementById('broker-select').value;
+            const msgBox = document.getElementById('upload-msg');
+            const btn = e.target.querySelector('button');
+
+            if (!user || !type || !broker) return alert("Please select Owner, Category and Broker");
+
+            const formData = new FormData(e.target);
+            formData.append('account_id', `${user}_${type}`);
+            formData.append('source', broker);
+
+            msgBox.innerHTML = '<span style="color: yellow;">Uploading & Processing...</span>';
+            btn.disabled = true;
+
+            try {
+                // Use the existing Zerodha route as it's actually generic for tradebooks now
                 const res = await fetch('/api/upload/zerodha', {
                     method: 'POST',
                     body: formData
                 });
                 const data = await res.json();
-                
+
                 if (res.ok) {
                     msgBox.innerHTML = `<span style="color: #03dac6;">✅ ${data.message}</span>`;
-                    setTimeout(() => location.reload(), 1500); 
+                    setTimeout(() => location.reload(), 1500);
                 } else {
                     msgBox.innerHTML = `<span style="color: #cf6679;">❌ ${data.error}</span>`;
                 }
@@ -140,4 +312,5 @@
         });
     </script>
 </body>
+
 </html>
