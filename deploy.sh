@@ -38,12 +38,12 @@ npm install
 npm run build
 cd ..
 
-# 5. Check for Migrations
+# 5. Check for Migrations   
 echo "🔍 Checking for DB Migrations..."
 if ls migrations/*.sql 1> /dev/null 2>&1; then
     echo "⚠️  Found migration files in migrations/. Check if they need to be run:"
     ls migrations/*.sql
-    echo "   Run: python tools/run_migration.py migrations/<filename>"
+    echo "   Run: python tools/run_migration.py  migrations/<filename>"
 else
     echo "✅ No migrations found."
 fi

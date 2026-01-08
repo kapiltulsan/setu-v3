@@ -115,5 +115,8 @@ def dashboard():
                          sys_health=sys_health,
                          auth_status=auth_status)
 
+if __name__ == '__main__':
+    # The print verifies it's actually running
+    print("Starting Setu V3 Backend on Port 5000...") 
     app.run(host='0.0.0.0', port=5000, debug=True)
 #
