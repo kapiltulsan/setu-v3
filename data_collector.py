@@ -151,17 +151,35 @@ def load_data_session():
                     break
                     
     if not selected_account:
-        raise Exception("No Operational ZERODHA account found for Data Collection")
+        # Final Fallback check for Angel
+        for user, acc_type, aid, details in accounts:
+            if details['broker'] == "ANGEL_ONE":
+                selected_account = aid
+                selected_details = details
+                break
+
+    if not selected_account:
+        raise Exception("No Operational ZERODHA/ANGEL account found for Data Collection")
         
-    print(f"📡 Using Data Source Account: {selected_account}")
-    # Instantiate Broker (Only Zerodha supported for OHLC currently)
+    print(f"📡 Using Data Source Account: {selected_account} ({selected_details['broker']})")
+    # Instantiate Broker
     broker = get_broker_client(selected_details['broker'], selected_details['credential_id'])
+    # Login might fail if token expired, but let's try
     if not broker.login():
-        raise Exception(f"Login failed for data source {selected_account}")
+        print(f"⚠️ Initial Login failed for {selected_account}. Job might fail if tokens are invalid.")
+        # We don't raise immediately, let the worker thread try or fail
+        
+    if selected_details['broker'] == "ANGEL_ONE":
+        # Angel One has strict rate limits ( ~3 req/sec )
+        print("⚠️ Throttling for Angel One (Max 1 thread + Delay)")
+        global MAX_CONCURRENT
+        MAX_CONCURRENT = 1
+        global BATCH_DELAY
+        BATCH_DELAY = 1.0 # Extra delay between batches
         
     return broker
 
-def fetch_data_chunked(broker, token, from_date, to_date, timeframe):
+def fetch_data_chunked(broker, symbol, token, from_date, to_date, timeframe):
     """
     Fetches historical data using the broker interface.
     """
@@ -174,9 +192,13 @@ def fetch_data_chunked(broker, token, from_date, to_date, timeframe):
         if (current_to - current_from).total_seconds() < 60:
             break
             
+        # Rate Limit Pacing
+        if not hasattr(broker, 'kite'):
+             time.sleep(2.0) 
+
         # Broker wrapper handles the call
         # broker.get_historical_data signature: symbol, token, from, to, interval
-        chunk_data = broker.get_historical_data(None, token, current_from, current_to, timeframe)
+        chunk_data = broker.get_historical_data(symbol, token, current_from, current_to, timeframe)
         if chunk_data:
             all_candles.extend(chunk_data)
         current_from = current_to
@@ -194,15 +216,16 @@ def process_symbol(broker, pool, symbol, token, timeframe, table_suffix):
         try:
             conn = pool.getconn()
             
-            # --- PRE-CHECK: Validate Token against DB ---
+            # Only relevant for ZERODHA. Angel maps internally.
             current_token = token
-            if attempt > 0:
-                with conn.cursor() as cur:
-                    cur.execute("SELECT instrument_token FROM ref.symbol WHERE trading_symbol = %s", (symbol,))
-                    res = cur.fetchone()
-                    if res and res[0] != token:
-                        logger.log("warning", "Token Healed (Pre-fetch)", symbol=symbol, old=token, new=res[0])
-                        current_token = res[0]
+            if hasattr(broker, 'kite'):
+                if attempt > 0:
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT instrument_token FROM ref.symbol WHERE trading_symbol = %s", (symbol,))
+                        res = cur.fetchone()
+                        if res and res[0] != token:
+                            logger.log("warning", "Token Healed (Pre-fetch)", symbol=symbol, old=token, new=res[0])
+                            current_token = res[0]
         
             with conn: # Transaction block
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -227,7 +250,7 @@ def process_symbol(broker, pool, symbol, token, timeframe, table_suffix):
                         mode = f"BACKFILL"
 
                     # Fetch Data
-                    data = fetch_data_chunked(broker, current_token, from_date, to_date, timeframe)
+                    data = fetch_data_chunked(broker, symbol, current_token, from_date, to_date, timeframe)
                     
                     if not data:
                         return {"status": "NO_DATA", "symbol": symbol, "msg": "No data returned"}
@@ -272,14 +295,11 @@ def process_symbol(broker, pool, symbol, token, timeframe, table_suffix):
                  logger.log("error", "Instrument Token Healing Failed", symbol=symbol, exc_info=True)
                  raise Exception(f"Instrument Token Invalid for {symbol}") from e
 
-        except kite_exceptions.TokenException as e:
-            # --- CRITICAL AUTH ERROR (Session Expired) ---
-            # TokenException means the API Access Token is invalid. THIS CANNOT BE SELF-HEALED without re-login.
-            # We should probably abort the entire job or at least fail this symbol hard.
-            logger.log("error", "Session Token Expired/Invalid", symbol=symbol, exc_info=True)
-            raise Exception("CRITICAL: User Session Expired. Please Re-login via Dashboard.") from e
-                
         except Exception as e:
+            # Catch-all for Angel or other errors
+            if "Session Expired" in str(e):
+                 logger.log("error", "Session Token Expired/Invalid", symbol=symbol, exc_info=True)
+                 raise Exception("CRITICAL: User Session Expired.") from e
             raise Exception(f"Failed processing '{symbol}': {e}") from e
         finally:
             if conn:
@@ -337,6 +357,7 @@ def main():
             print("⏳ Waiting for jobs...")
             completed = 0
             errors = 0
+            error_counts = {}
             failed_jobs = []
 
             for future in concurrent.futures.as_completed(future_to_symbol):
@@ -346,20 +367,48 @@ def main():
                     status = result.get("status")
                     if status == "SUCCESS":
                         completed += 1
+                    elif status == "NO_DATA":
+                         # Optional: Track no data separately if needed
+                         pass
                 except Exception as e:
                     errors += 1
-                    failed_jobs.append((symbol, str(e)))
+                    err_msg = str(e)
+                    
+                    # Categorize Error
+                    category = "General Error"
+                    if "timed out" in err_msg: category = "Connection Timeout"
+                    elif "Access denied" in err_msg: category = "Rate Limit Exceeded"
+                    elif "Instrument Token" in err_msg: category = "Token Invalid"
+                    elif "Session Expired" in err_msg: category = "Session Expired"
+                    
+                    error_counts[category] = error_counts.get(category, 0) + 1
+                    
+                    failed_jobs.append((symbol, err_msg))
                     print(f"❌ {symbol} Failed: {e}")
 
         duration = time.time() - start_time
         logger.log("info", "Job Complete", duration=duration, completed=completed, errors=errors)
         print(f"✅ DONE. Time: {duration:.2f}s | Success: {completed} | Errors: {errors}")
 
-        # Notification logic (simplified)
+        # Notification logic
+        msg_title = f"Data Collector Report ({args.timeframe})"
+        msg_body = (
+            f"✅ Success: {completed}\n"
+            f"❌ Failed: {errors}\n"
+            f"⏱️ Duration: {duration:.1f}s\n"
+        )
+        
         if errors > 0:
-            notifier.send_notification("Data Collector Errors", f"Errors: {errors}\n{failed_jobs[:5]}", priority="high")
+            msg_body += "\n⚠️ Error Breakdown:\n"
+            for cat, count in error_counts.items():
+                msg_body += f"- {cat}: {count}\n"
+                
+            priority = "high"
         else:
-            notifier.send_notification("Data Collector Success", f"Done. {completed} updated.")
+            msg_body += "\n✨ All symbols processed successfully."
+            priority = "normal"
+            
+        notifier.send_notification(msg_title, msg_body, priority=priority)
 
     except Exception as e:
         logger.log("error", "Critical Collector Failure", exc_info=True)

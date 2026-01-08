@@ -5,8 +5,8 @@
     "system_config": {
         "ohlc_provider": {
             "user_ref": "kapil",
-            "account_ref": "trade_execution",
-            "description": "Using Kapil's AngelOne API for free OHLC data"
+            "account_ref": "investing_longterm",
+            "description": "Using Kapil's AngelOne API for massive historical data"
         }
     },
     "api_mapping": {

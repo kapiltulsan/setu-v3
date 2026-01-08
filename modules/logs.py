@@ -44,14 +44,20 @@ class EnterpriseLogger:
         self._logger = logging.getLogger(name)
         self._logger.setLevel(logging.INFO)
         
+        self._logger.propagate = False
+        
         # Avoid adding handlers multiple times if logger is reused
         if not self._logger.handlers:
+            formatter = logging.Formatter('%(message)s')
+
             # 1. Console Handler (for Scheduler capture/Terminal)
             console_handler = logging.StreamHandler(sys.stdout)
+            console_handler.setFormatter(formatter)
             self._logger.addHandler(console_handler)
             
             # 2. File Handler (Restored)
             file_handler = logging.FileHandler(log_file, encoding='utf-8')
+            file_handler.setFormatter(formatter)
             self._logger.addHandler(file_handler)
             
         self.log_file_path = log_file
@@ -71,7 +77,8 @@ class EnterpriseLogger:
 
     def log(self, level, msg, **kwargs):
         json_msg = self._format_message(level, msg, **kwargs)
-        print(json_msg, flush=True) 
+        # Use underlying logger to write to both File and Console handlers
+        self._logger.info(json_msg) 
 
     def info(self, msg, **kwargs):
         self.log("INFO", msg, **kwargs)
