@@ -4,6 +4,7 @@ import LiveMetricsCard from "@/components/dashboard/LiveMetricsCard";
 import ScannerTileCard from "@/components/dashboard/ScannerTileCard";
 import TechStackCard from "@/components/dashboard/TechStackCard";
 import BacktestTileCard from "@/components/dashboard/BacktestTileCard";
+import SectorRadarTileCard from "@/components/dashboard/SectorRadarTileCard";
 
 
 export default function Home() {
@@ -24,6 +25,7 @@ export default function Home() {
           <AssetAllocationChart />
           <ScannerTileCard />
           <BacktestTileCard />
+          <SectorRadarTileCard />
 
           {/* Placeholder for future cards (Logs, Heatmap etc) */}
 

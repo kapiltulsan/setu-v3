@@ -48,6 +48,10 @@ def fetch_all_constituents(cur: cursor) -> list[tuple[str, str]]:
     # 2. Loop through DB results
     import time
     for index_name, url in sources:
+        if not url:
+            logger.log("warning", f"Skipping {index_name} because URL is empty.")
+            continue
+            
         logger.log("info", f"Fetching {index_name}...", url=url)
         
         max_retries = 3

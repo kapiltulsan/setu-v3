@@ -52,7 +52,18 @@ The dashboard is the central command center. It is divided into 4 main tiles:
 - **Setup**: Configure `TELEGRAM_BOT_TOKEN` and `CHAT_ID` in `.env`.
 - **Test**: Run `python -m modules.notifier -t "Test" -m "Hello"` to send a test alert.
 
-### 6. 📜 Live Logs
+### 6. 📥 Historical Data Ingestion (NSE Archives)
+- **Purpose**: Downloads historical daily Bhavcopies and Index data directly from NSE.
+- **Script**: `ingest_history.py`
+- **Schedule**: Integrated into **Midnight Batch** (runs at 00:30).
+- **Stealth**: Uses randomized delays and session rotation.
+- **Database**: Populates `ohlc.market_data_daily` and `ohlc.indices_daily`.
+- **Manual Start**:
+  ```bash
+  ./venv/bin/python ingest_history.py
+  ```
+
+### 7. 📜 Live Logs
 - Displays the last 100 log entries from the application.
 - **Color Coding**:
   - `INFO` (Green): Normal operations.
@@ -60,7 +71,7 @@ The dashboard is the central command center. It is divided into 4 main tiles:
   - `ERROR` (Red): Attention required.
 - **Path**: Logs are stored locally in `logs/SetuV3/Python/<YYYY-MM-DD>/`.
 
-### 7. 🔍 Stock Scanner
+### 8. 🔍 Stock Scanner
 - **Location**: Frontend > Scanners.
 - **Purpose**: Create and run technical rules to filter stocks.
 - **Workflow**:

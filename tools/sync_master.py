@@ -38,23 +38,17 @@ GET_ACTIVE_EXCHANGES_SQL = "SELECT exchange_code FROM ref.exchange WHERE is_acti
 
 
 UPSERT_SYMBOLS_SQL = """
-
     INSERT INTO ref.symbol
-
     (exchange_code, symbol, trading_symbol, instrument_token, segment, lot_size, is_index)
-
     VALUES (%s, %s, %s, %s, %s, %s, (%s = 'INDEX'))
-
-    ON CONFLICT (exchange_code, symbol)
-
+    ON CONFLICT (instrument_token)
     DO UPDATE SET
-
-        instrument_token = EXCLUDED.instrument_token,
-
+        exchange_code = EXCLUDED.exchange_code,
+        symbol = EXCLUDED.symbol,
         trading_symbol = EXCLUDED.trading_symbol,
-
+        segment = EXCLUDED.segment,
+        lot_size = EXCLUDED.lot_size,
         updated_at = NOW();
-
 """
 
 
@@ -158,35 +152,26 @@ def sync_instruments():
                 all_instruments_to_upsert = []
 
                 # 2. Fetch instruments for all exchanges first
-
+                seen_tokens = set()
                 for exchange in target_exchanges:
-
                     logger.log("info", f"Downloading instruments for: {exchange}")
-
                     try:
-
                         instruments = kite.instruments(exchange)
-
                         for inst in instruments:
-
+                            token = inst['instrument_token']
+                            if token in seen_tokens:
+                                continue
+                            seen_tokens.add(token)
+                            
                             all_instruments_to_upsert.append((
-
                                 inst['exchange'],
-
                                 inst['name'],
-
                                 inst['tradingsymbol'],
-
-                                inst['instrument_token'],
-
+                                token,
                                 inst['segment'],
-
                                 inst['lot_size'],
-
                                 inst['instrument_type']  # Used for is_index logic
-
                             ))
-
                         logger.log("info", f"Fetched {len(instruments)} instruments for {exchange}")
 
                     except Exception as k_err:

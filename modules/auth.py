@@ -34,40 +34,54 @@ def save_token(credential_id, token_data):
         f.flush()
         os.fsync(f.fileno())
 
-def get_token_status():
+def get_token_status(credential_id=None):
     """
-    Checks token status for BOTH Zerodha and AngelOne.
-    Returns (dict_status) where key is broker type
+    Checks token status. If credential_id provided, returns that specific one.
+    Otherwise returns a summary dict of all known tokens.
     """
     data = get_tokens_data()
-    status = {
+    
+    def evaluate_token(cred_id, v):
+        # Zerodha
+        if "access_token" in v:
+            return {
+                "valid": True,
+                "broker": "ZERODHA",
+                "date": v.get("timestamp") or v.get("login_time", "N/A"),
+                "id": cred_id
+            }
+        # AngelOne
+        if "jwtToken" in v:
+            return {
+                "valid": True,
+                "broker": "ANGEL_ONE",
+                "date": v.get("timestamp") or "N/A",
+                "id": cred_id
+            }
+        return {"valid": False, "date": "Invalid", "id": cred_id}
+
+    if credential_id:
+        if credential_id in data:
+            return evaluate_token(credential_id, data[credential_id])
+        return {"valid": False, "date": "Never", "id": credential_id, "message": "No token found"}
+
+    # Summary grouped by broker (backward compatibility + global view)
+    summary = {
         "ZERODHA": {"valid": False, "date": "Never", "id": None},
-        "ANGEL_ONE": {"valid": False, "date": "Never", "id": None}
+        "ANGEL_ONE": {"valid": False, "date": "Never", "id": None},
+        "all_tokens": {}
     }
     
-    if not data:
-        return status
-        
     for k, v in data.items():
         if not isinstance(v, dict): continue
+        status = evaluate_token(k, v)
+        summary["all_tokens"][k] = status
         
-        # Zerodha Check
-        if "access_token" in v:
-            status["ZERODHA"] = {
-                "valid": True,
-                "date": v.get("timestamp") or v.get("login_time", "N/A"),
-                "id": k
-            }
-        
-        # AngelOne Check
-        if "jwtToken" in v:
-            status["ANGEL_ONE"] = {
-                "valid": True,
-                "date": v.get("timestamp") or "N/A",
-                "id": k
-            }
+        # Update legacy top-level status if valid
+        if status["valid"]:
+            summary[status["broker"]] = status
             
-    return status
+    return summary
 
 def get_kite_url():
     """Returns the login URL for the default Zerodha account."""

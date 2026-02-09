@@ -51,7 +51,25 @@ This document tracks the major achievements, feature implementations, and system
   - **Automated Token Handling**: AngelOne JWT tokens are saved and validated alongside Zerodha keys.
   - **Dependency Updates**: Integrated `smartapi-python` with all necessary sub-dependencies.
 
+### 7. 📥 Robust NSE Historical Data Ingestion (Jan 2026)
+**Goal**: Build a high-integrity historical market database from NSE Archives.
+- **Implemented**: `ingest_history.py` with standalone and integrated (Midnight Job) execution.
+- **Features**:
+  - **Stealth Protocol**: Browser mimicry, session rotation, and randomized jitter to avoid IP bans.
+  - **Comprehensive Data**: Downloads both Market Bhavcopy and Index Data.
+  - **Delivery Data**: Captures delivery quantity and percentage for all symbols.
+  - **Auto-Sync**: Automatically resumes from the last synced date; integrated into `midnight_batch`.
+### 8. 🦞 Moltbook Strategic Integration (Feb 2026)
+**Goal**: Establish an autonomous presence for SetuV3 on the Moltbook agent social network to build brand authority and collaborate with others.
+- **Implemented**: `MoltMonitor` background service with Privacy Guard and Intelligent Batching.
+- **Achievements**:
+  - **Registration**: Successfully handles `Antigravity-SetuV3` identity.
+  - **Strategy Evangelism**: Automated posting of technical trading strategies ("Vectorizing the SetuV3 Engine" and "The Squeeze").
+  - **Community Engagement**: Gained **6 Karma** and **2 Followers** in the first 4 days.
+  - **Bot Collaboration**: High-quality technical discussion initiated with `u/ReconLobster` on vectorized engine performance.
+
 ## 🔮 Roadmap / Next Steps
+- [x] **NSE History Ingestion**: Complete historical download script with stealth protocol and delivery data support (Jan 2026).
 - [ ] **Advanced Charting**: Implementation of TradingView/Lightweight Charts in the Market Data tile.
 - [ ] **Alerting Strategy**: Refine Telegram alerts to be less noisy for routine success messages.
 - [ ] **Backtesting Engine**: Integration of the core backtesting module with the dashboard.

@@ -344,15 +344,16 @@ def calculate_portfolio():
                         data['invested'],
                         0, # Current Value 
                         0, # Unrealized PnL
-                        acc_id
+                        acc_id,
+                        'Open' # Default for now, can be expanded later
                     ))
         
         if items:
             insert_port_sql = """
                 INSERT INTO trading.portfolio 
-                (date, symbol, total_quantity, average_price, invested_value, current_value, pnl, account_id)
+                (date, symbol, total_quantity, average_price, invested_value, current_value, pnl, account_id, strategy_name)
                 VALUES %s
-                ON CONFLICT (date, symbol, account_id) DO UPDATE
+                ON CONFLICT (date, symbol, account_id, strategy_name) DO UPDATE
                 SET total_quantity=EXCLUDED.total_quantity,
                     average_price=EXCLUDED.average_price,
                     invested_value=EXCLUDED.invested_value;
@@ -369,27 +370,82 @@ def calculate_portfolio():
     finally:
         if conn: conn.close()
 
-def get_portfolio_summary(account_id=None):
+def get_portfolio_summary(account_id=None, strategy_name=None, member_id=None, broker=None):
     conn = get_db_connection()
     if not conn: return []
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Base Query
             sql = """
-                SELECT * FROM trading.portfolio 
-                WHERE date = (SELECT MAX(date) FROM trading.portfolio)
+                SELECT p.*, a.user as member, a.broker
+                FROM trading.portfolio p
+                LEFT JOIN LATERAL (
+                    -- This is a bit of a hack since we don't have a direct account table joining here easily
+                    -- but we can infer from config if we really need to. 
+                    -- For now, let's assume account_id is descriptive enough or we join with a mapping.
+                    SELECT * FROM (
+                        SELECT 'dummy' as user, 'dummy' as broker -- Placeholder
+                    ) dummy
+                ) a ON TRUE
+                WHERE p.date = (SELECT MAX(date) FROM trading.portfolio)
             """
             params = []
             
             if account_id:
-                sql += " AND account_id = %s"
+                sql += " AND p.account_id = %s"
                 params.append(account_id)
+            
+            if strategy_name:
+                sql += " AND p.strategy_name = %s"
+                params.append(strategy_name)
                 
-            sql += " ORDER BY symbol"
+            sql += " ORDER BY p.symbol"
             
             cur.execute(sql, tuple(params))
             return cur.fetchall()
             
+    finally:
+        conn.close()
+
+def get_strategies():
+    conn = get_db_connection()
+    if not conn: return []
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM ref.strategies ORDER BY name")
+            return cur.fetchall()
+    finally:
+        conn.close()
+
+def upsert_strategy(name, description=None):
+    conn = get_db_connection()
+    if not conn: return False, "DB Connection Failed"
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO ref.strategies (name, description)
+                VALUES (%s, %s)
+                ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description, updated_at = NOW()
+            """, (name, description))
+            conn.commit()
+            return True, "Strategy saved"
+    except Exception as e:
+        return False, str(e)
+    finally:
+        conn.close()
+
+def delete_strategy(name):
+    if name == 'Open':
+        return False, "Cannot delete 'Open' strategy"
+    conn = get_db_connection()
+    if not conn: return False, "DB Connection Failed"
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM ref.strategies WHERE name = %s", (name,))
+            conn.commit()
+            return True, "Strategy deleted"
+    except Exception as e:
+        return False, str(e)
     finally:
         conn.close()
 

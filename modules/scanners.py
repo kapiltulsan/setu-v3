@@ -6,6 +6,8 @@ import json
 import traceback
 from flask import Blueprint, jsonify, request
 from psycopg2.extras import RealDictCursor
+import pandas as pd
+import numpy as np
 from datetime import datetime
 
 scanners_bp = Blueprint('scanners', __name__)
@@ -282,6 +284,145 @@ def run_scanner(scanner_id):
         else:
             return jsonify({"status": "error", "message": "Scanner execution failed or no matches found."}), 500
 
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+@scanners_bp.route('/api/sectors/status', methods=['GET'])
+def get_sectors_status():
+    """
+    Calculates real-time metrics for all indices to power the Sector Radar.
+    Returns: List of sector status cards with squeeze, momentum, and trend data.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "DB Connection Failed"}), 500
+    
+    try:
+        with conn.cursor() as cur:
+            # 1. Fetch active indices
+            cur.execute("SELECT index_name FROM ref.index_source WHERE is_active = TRUE ORDER BY index_name")
+            indices = [row[0] for row in cur.fetchall()]
+            
+        results = []
+        for index_name in indices:
+            try:
+                # 2. Fetch daily OHLC (last 50 days to have enough for SMA 20 + BB 20)
+                query = """
+                    SELECT candle_start as date, open, high, low, close, volume 
+                    FROM ohlc.candles_1d 
+                    WHERE symbol = %s 
+                    ORDER BY candle_start DESC 
+                    LIMIT 50
+                """
+                df = pd.read_sql(query, conn, params=(index_name,), parse_dates=['date'])
+                if df.empty or len(df) < 21:
+                    continue
+                
+                # Sort ascending for calculation
+                df = df.sort_values('date').reset_index(drop=True)
+                
+                # 3. Calculate Indicators
+                # SMA 20
+                df['SMA_20'] = df['close'].rolling(window=20).mean()
+                
+                # Bollinger Bands (20, 2)
+                std = df['close'].rolling(window=20).std()
+                df['UBB'] = df['SMA_20'] + (2 * std)
+                df['LBB'] = df['SMA_20'] - (2 * std)
+                df['BB_Width'] = (df['UBB'] - df['LBB']) / df['SMA_20']
+                
+                # Squeeze Logic
+                # Current BBW is the lowest of the last 20 periods AND < 0.12
+                df['Min_BBW_20'] = df['BB_Width'].rolling(window=20).min()
+                last_bbw = df['BB_Width'].iloc[-1]
+                min_bbw = df['Min_BBW_20'].iloc[-1]
+                is_squeezing = bool((last_bbw == min_bbw) and (last_bbw < 0.12))
+                
+                # 4. Momentum & Trend
+                last_close = float(df['close'].iloc[-1])
+                prev_close = float(df['close'].iloc[-2])
+                sma_20 = float(df['SMA_20'].iloc[-1])
+                
+                change_pct = ((last_close - prev_close) / prev_close) * 100
+                momentum = "BULLISH" if last_close > sma_20 else "BEARISH"
+                
+                # Sparkline (last 20 periods)
+                sparkline = df['close'].tail(20).tolist()
+                
+                results.append({
+                    "name": index_name,
+                    "price": last_close,
+                    "change": change_pct,
+                    "isSqueezing": is_squeezing,
+                    "momentum": momentum,
+                    "trend": "UP" if change_pct > 0 else "DOWN",
+                    "sparkline": sparkline
+                })
+            except Exception as e:
+                print(f"Error processing index {index_name}: {e}")
+                continue
+                
+        return jsonify(results)
+        
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@scanners_bp.route('/api/sectors/visualize', methods=['POST'])
+def get_sector_visualize_data():
+    """
+    Returns full historical technical data for an index to power the Sector Visualizer.
+    """
+    try:
+        data = request.json
+        symbol = data.get('symbol')
+        years = int(data.get('years', 2))
+        data_limit = years * 252 + 100
+        
+        if not symbol:
+            return jsonify({"error": "Symbol is required"}), 400
+            
+        from modules.scanner_engine import fetch_data_for_symbol, resample_data
+        
+        # 1. Fetch Daily Data
+        df_daily = fetch_data_for_symbol(symbol, limit=data_limit)
+        if df_daily is None or df_daily.empty:
+            return jsonify({"error": "Data not found"}), 404
+            
+        # 2. Resample to Weekly (The visualizer uses weekly by default for this strategy)
+        df_weekly = resample_data(df_daily, timeframe='week')
+        df_weekly = df_weekly.rename(columns={
+            'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'
+        })
+        df_weekly['Date'] = df_weekly.index.strftime('%Y-%m-%d')
+        df_weekly = df_weekly.reset_index(drop=True)
+        
+        # 3. Calculate Indicators (Reusing VolatilitySqueezeBacktester logic)
+        from modules.backtesting.volatility_squeeze import VolatilitySqueezeBacktester
+        
+        # We need to ensure 'Date' is datetime for the backtester
+        df_calc = df_weekly.copy()
+        df_calc['Date'] = pd.to_datetime(df_calc['Date'])
+        
+        engine = VolatilitySqueezeBacktester(df_calc)
+        # We don't necessarily need to run_backtest() if we just want indicators, 
+        # but the indicators are calculated in __init__
+        
+        # Return the entire dataframe with indicators
+        # FinancialChart expects keys like UBB, LBB, etc.
+        result_df = engine.df.replace({np.nan: None})
+        
+        # Convert Timestamp to string for JSON
+        result_df['Date'] = result_df['Date'].dt.strftime('%Y-%m-%d')
+        
+        return jsonify({
+            "status": "success",
+            "plot_data": result_df.to_dict(orient='records')
+        })
+        
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500

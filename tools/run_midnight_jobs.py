@@ -51,10 +51,9 @@ def main():
     steps = [
         ("sync_master.py", []),                  # 1. Update Symbols (Master Data)
         ("sync_constituents.py", []),            # 2. Update Index Mappings
-        ("data_collector.py", ["day"]),          # 3. Daily OHLC
-        # Note: 60minute is usually handled by hourly scheduler, but we run it once at midnight too to be sure?
-        # User config: data_collector.py ["60minute"]
-        ("data_collector.py", ["60minute"])      
+        ("data_collector.py", ["day"]),          # 3. Daily OHLC (Broker)
+        ("data_collector.py", ["60minute"]),     # 4. Hourly OHLC (Broker)
+        ("ingest_history.py", [])                 # 5. History & Delivery Data (NSE Archives - Slow)
     ]
     
     all_success = True

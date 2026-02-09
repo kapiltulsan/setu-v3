@@ -16,6 +16,7 @@ Setu V3 is a Flask-based application for algorithmic trading and portfolio manag
 - **Multi-Broker Support**: Import tradebooks from Zerodha, Angel One, etc. using a dynamic mapping wizard.
 - **Multi-User Capable**: Supports tracking distinct portfolios (e.g., FAMILY, PERSONAL) via Account IDs.
 - **Automated Sync**: Midnight jobs sync daily candles and constituent data automagically.
+- **NSE History & Delivery**: High-integrity historical ingestion script with stealth protocol for delivery and market data.
 
 ## 🚀 Setup Instructions
 

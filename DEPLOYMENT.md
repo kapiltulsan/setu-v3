@@ -129,7 +129,13 @@ sudo journalctl -u setu-admin -f
 ```
 
 ## 4. Setting up Midnight Jobs (Data Collection)
-Automate data collection (Symbols, Indices, OHLC) to run daily at 00:30.
+Automate data collection (Symbols, Indices, OHLC, and **Historical/Delivery Data**) to run daily at 00:30.
+
+The `midnight_batch` runs the following in order:
+1. `sync_master.py` (Symbols)
+2. `sync_constituents.py` (Index Mappings)
+3. `data_collector.py` (OHLC - Broker)
+4. `ingest_history.py` (**Last: NSE Archives & Delivery - Slow Rate**)
 
 1. Copy systemd files:
    ```bash

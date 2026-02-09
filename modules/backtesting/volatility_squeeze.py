@@ -102,6 +102,9 @@ class VolatilitySqueezeBacktester:
                     is_in_trade = True
                     entry_date = row['Date']
                     entry_price = row['Close']
+                    entry_bbw = row['BB_Width']
+                    entry_vol_ratio = row['Volume'] / row['Volume_SMA_20'] if row['Volume_SMA_20'] > 0 else 0
+                    entry_sma_dist = (row['Close'] - row['SMA_30']) / row['SMA_30'] * 100 if row['SMA_30'] > 0 else 0
                     # Initial stop price
                     stop_price = row['Highest_High_20'] - (3 * row['ATR_14'])
             else:
@@ -114,6 +117,7 @@ class VolatilitySqueezeBacktester:
                 if row['Close'] < stop_price:
                     exit_date = row['Date']
                     exit_price = row['Close']
+                    pnl_pct = ((exit_price - entry_price) / entry_price) * 100
                     holding_period_days = (exit_date - entry_date).days
                     
                     # CAGR per trade: ((exit_price / entry_price) ** (365.25 / days) - 1) * 100
@@ -127,7 +131,10 @@ class VolatilitySqueezeBacktester:
                         'Exit_Price': exit_price,
                         'PnL_Percent': pnl_pct,
                         'Holding_Period_Days': holding_period_days,
-                        'CAGR': trade_cagr
+                        'CAGR': trade_cagr,
+                        'Entry_BB_Width': entry_bbw,
+                        'Entry_Vol_Ratio': entry_vol_ratio,
+                        'Entry_SMA_Dist_Pct': entry_sma_dist
                     })
                     is_in_trade = False
                     
@@ -211,9 +218,14 @@ class VolatilitySqueezeBacktester:
         in_window = False
         
         # We only care about the window [start_idx, end_idx]
+        target_entry = pd.to_datetime(entry_date).replace(tzinfo=None)
+        target_exit = pd.to_datetime(exit_date).replace(tzinfo=None)
+        
         for i in range(start_idx, end_idx + 1):
             row = self.df.iloc[i]
-            if row['Date'] == entry_date:
+            row_date = pd.to_datetime(row['Date']).replace(tzinfo=None)
+            
+            if row_date == target_entry:
                 in_window = True
                 current_stop = row['Highest_High_20'] - (3 * row['ATR_14'])
             
@@ -223,11 +235,13 @@ class VolatilitySqueezeBacktester:
                     current_stop = new_stop
                 trade_stops.append(current_stop)
                 
-                if row['Date'] == exit_date:
+                if row_date == target_exit:
                     in_window = False
             else:
-                trade_stops.append(None) # Use None for better JSON handling
+                trade_stops.append(None)
         
         plot_df['Trailing_Stop'] = trade_stops
+        plot_df['ATR_x3'] = plot_df['ATR_14'] * 3
+        plot_df['HH_20_Window'] = "20 periods" # Placeholder or logic if needed
         
         return plot_df.replace({np.nan: None}).to_dict(orient='records')

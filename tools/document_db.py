@@ -4,9 +4,11 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import psycopg2
+from dotenv import load_dotenv
 from modules.charts import get_db_connection
 
 def generate_schema_markdown():
+    load_dotenv()
     conn = get_db_connection()
     if not conn:
         print("Failed to connect to database.")

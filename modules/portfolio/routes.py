@@ -17,26 +17,39 @@ import config
 def api_portfolio_summary():
     """Return Portfolio Summary as JSON for Dashboard."""
     account_id = request.args.get('account_id')
+    strategy_name = request.args.get('strategy_name')
     try:
-        portfolio_rows = get_portfolio_summary(account_id)
+        portfolio_rows = get_portfolio_summary(account_id, strategy_name)
         
         # Calculate Aggregates
         total_invested = sum(row['invested_value'] for row in portfolio_rows)
         current_value = sum(row['current_value'] for row in portfolio_rows)
         if current_value == 0:
-             current_value = total_invested # Fallback if no live data yet
+            current_value = total_invested # Fallback if no live data yet
              
         pnl_absolute = current_value - total_invested
         pnl_percent = (pnl_absolute / total_invested * 100) if total_invested > 0 else 0
         
+        # Cast Decimals/Numbers to floats for JSON compatibility
+        processed_holdings = []
+        for row in portfolio_rows:
+            processed_row = dict(row)
+            for k, v in processed_row.items():
+                if isinstance(v, (int, float)) or hasattr(v, '__float__'):
+                    try:
+                        processed_row[k] = float(v)
+                    except:
+                        pass
+            processed_holdings.append(processed_row)
+
         return jsonify({
             "summary": {
-                "total_invested": total_invested,
-                "current_value": current_value,
-                "pnl_absolute": pnl_absolute,
-                "pnl_percent": round(pnl_percent, 2)
+                "total_invested": float(total_invested),
+                "current_value": float(current_value),
+                "pnl_absolute": float(pnl_absolute),
+                "pnl_percent": round(float(pnl_percent), 2)
             },
-            "holdings": portfolio_rows # RealDictCursor returns list of dicts
+            "holdings": processed_holdings
         })
     except Exception as e:
         import traceback
@@ -60,7 +73,8 @@ def api_config_accounts():
                 "label": f"{user.upper()} - {acc_type.replace('_', ' ').title()}",
                 "user": user,
                 "type": acc_type,
-                "broker": details.get("broker")
+                "broker": details.get("broker"),
+                "credential_id": details.get("credential_id")
             })
         return jsonify(accounts)
     except Exception as e:
@@ -190,3 +204,64 @@ def get_available_brokers():
             return jsonify(brokers)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@portfolio_bp.route('/api/strategies', methods=['GET', 'POST'])
+def api_strategies():
+    from .logic import get_strategies, upsert_strategy
+    
+    if request.method == 'GET':
+        return jsonify(get_strategies())
+    
+    if request.method == 'POST':
+        data = request.json
+        name = data.get('name')
+        description = data.get('description')
+        if not name:
+            return jsonify({'error': 'Strategy name is required'}), 400
+        
+        success, msg = upsert_strategy(name, description)
+        if success:
+            return jsonify({'message': msg})
+        else:
+            return jsonify({'error': msg}), 500
+
+@portfolio_bp.route('/api/strategies/<name>', methods=['DELETE'])
+def api_delete_strategy(name):
+    from .logic import delete_strategy
+    success, msg = delete_strategy(name)
+    if success:
+        return jsonify({'message': msg})
+    else:
+        return jsonify({'error': msg}), 500
+
+@portfolio_bp.route('/api/auth/verify')
+def api_verify_token():
+    """Verify if a valid token exists for the given account."""
+    from modules.auth import get_token_status
+    import config
+    account_id = request.args.get('account_id')
+    
+    if not account_id or account_id == "All" or account_id == "null":
+        # Global check
+        token_status = get_token_status()
+        valid_any = any(s['valid'] for s in token_status.get('all_tokens', {}).values())
+        return jsonify({"valid": valid_any, "message": "Global connection status check completed."})
+
+    # Find the credential_id for this account_id
+    cred_id = None
+    broker = None
+    account_name = None
+    for user, acc_type, acc_id, details in config.get_all_accounts():
+        if acc_id == account_id:
+            cred_id = details.get("credential_id")
+            broker = details.get("broker")
+            account_name = f"{user} ({acc_id})"
+            break
+            
+    if not cred_id:
+        return jsonify({"valid": False, "message": f"Account {account_id} not found in config."}), 404
+
+    status = get_token_status(cred_id)
+    status['broker'] = broker
+    status['account_name'] = account_name
+    return jsonify(status)
