@@ -128,7 +128,16 @@ def login_angel(credential_id):
 
 @auth_bp.route('/callback')
 def callback():
-    """Handles Zerodha Callback"""
+    """Handles Zerodha Callback (and mistakenly routed AngelOne callbacks)"""
+    
+    # ----------------------------------------------
+    # FIX: Angel One sometimes redirects to /callback instead of /callback_angel
+    # Check if this is actually an Angel One response
+    # ----------------------------------------------
+    if request.args.get('auth_token'):
+        logger.log("warning", "Intercepted AngelOne token on Zerodha endpoint. Rerouting...")
+        return callback_angel()
+    
     request_token = request.args.get('request_token')
     credential_id = request.cookies.get('pending_credential')
     
@@ -150,11 +159,17 @@ def callback():
 @auth_bp.route('/callback_angel')
 def callback_angel():
     """Handles AngelOne Callback"""
+    # DEBUG REDIRECTION
+    logger.log("info", f"Angel Callback HIT using URL: {request.url}")
+    logger.log("info", f"Angel Callback Params: {request.args}")
+    logger.log("info", f"Angel Callback Cookies: {request.cookies}")
+
     auth_token = request.args.get('auth_token')
     credential_id = request.cookies.get('pending_credential')
     
     if not auth_token or not credential_id:
-        return "❌ Error: Missing auth_token or session."
+        logger.log("error", f"Angel Callback Missing Info. Token: {auth_token}, Cred: {credential_id}")
+        return f"❌ Error: Missing auth_token or session. <br>Params: {request.args}<br>CredCookie: {credential_id}"
 
     api_key = os.getenv(f"{credential_id}_API_KEY")
     api_secret = os.getenv(f"{credential_id}_API_SECRET")

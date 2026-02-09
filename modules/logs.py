@@ -209,6 +209,37 @@ def stream_log(history_id):
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
+@logs_bp.route('/api/scheduler/logs/<int:history_id>/app')
+def get_app_logs_api(history_id):
+    """Returns structured application logs for a specific job execution."""
+    limit = request.args.get('limit', 1000)
+    level = request.args.get('level', None)
+    
+    query = "SELECT id, level, message, module, timestamp, metadata FROM sys.app_logs WHERE history_id = %s"
+    params = [history_id]
+    
+    if level:
+        query += " AND level = %s"
+        params.append(level)
+        
+    query += " ORDER BY id ASC LIMIT %s"
+    params.append(limit)
+    
+    try:
+        conn = get_db_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, tuple(params))
+            logs = cur.fetchall()
+        conn.close()
+        
+        for row in logs:
+            if row.get('timestamp'):
+                row['timestamp'] = row['timestamp'].isoformat()
+                
+        return jsonify(logs)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @logs_bp.route('/api/scheduler/logs/<int:history_id>/download')
 def download_log(history_id):
     """Downloads the raw log file."""
@@ -228,18 +259,24 @@ def download_log(history_id):
         return str(e), 500
 
 # --- Legacy Helper for Dashboard ---
-def get_recent_logs():
+def get_recent_logs(job_name=None):
     data = []
     log_source = "sys.job_history"
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
+            query = """
                 SELECT start_time, job_name, status, output_summary 
                 FROM sys.job_history 
-                ORDER BY start_time DESC 
-                LIMIT 50
-            """)
+            """
+            params = []
+            if job_name:
+                query += " WHERE job_name = %s "
+                params.append(job_name)
+                
+            query += " ORDER BY start_time DESC LIMIT 50"
+            
+            cur.execute(query, tuple(params))
             rows = cur.fetchall()
         
         conn.close()

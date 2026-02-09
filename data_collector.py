@@ -56,9 +56,9 @@ BUFFER_RULES = {
     "day": int(os.environ.get("OHLC_BUFFER_DAYS_DAILY", 5))
 }
 
-# Zerodha Fetch Limits
-LIMIT_DAYS_HOURLY = 300  
-LIMIT_DAYS_DAILY = 2000
+# Broker Fetch Limits (Single Call max)
+LIMIT_DAYS_HOURLY = int(os.getenv("OHLC_FETCH_LIMIT_DAYS_HOURLY", 400))
+LIMIT_DAYS_DAILY = int(os.getenv("OHLC_FETCH_LIMIT_DAYS_DAILY", 2000))
 
 logger = EnterpriseLogger("data_collector")
 
@@ -84,6 +84,11 @@ GET_UNIVERSE_SQL = """
         EXISTS (
             SELECT 1 FROM trading.positions pos 
             WHERE pos.symbol = s.trading_symbol
+        )
+        OR
+        -- 4. Is the Index Itself (Active Source)
+        s.trading_symbol IN (
+             SELECT index_name FROM ref.index_source WHERE is_active = TRUE
         )
     )
 """
@@ -311,6 +316,8 @@ def main():
     parser.add_argument("timeframe", choices=["day", "60minute"], help="Timeframe to fetch")
     args = parser.parse_args()
 
+    MAX_RETRIES = int(os.getenv("OHLC_MAX_RETRIES", 3))
+
     suffix_map = {"day": "1d", "60minute": "60m"}
     table_suffix = suffix_map[args.timeframe]
     
@@ -319,6 +326,7 @@ def main():
     logger.log("info", f"Starting Data Collector", timeframe=args.timeframe)
     notifier.send_notification("Data Collector Started", f"Starting {args.timeframe} collection")
 
+    db_pool = None
     try:
         # Load Broker
         broker = load_data_session()
@@ -338,84 +346,140 @@ def main():
         
         print(f"🚀 Starting Collection for {len(universe)} symbols ({args.timeframe})")
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
-            future_to_symbol = {}
-            
-            def chunker(seq, size):
-                return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+        # Statistics
+        stats = {
+            "completed": 0,
+            "errors": 0,
+            "error_counts": {}
+        }
+        
+        pending_symbols = universe 
+        
+        # Retry Loop
+        for attempt in range(MAX_RETRIES + 1):
+             if not pending_symbols:
+                 break
+                 
+             is_retry = attempt > 0
+             prefix = f"🔄 Attempt {attempt + 1}/{MAX_RETRIES + 1}" if is_retry else "▶️ Processing Batch"
+             print(f"{prefix}: {len(pending_symbols)} symbols...")
+             
+             failed_in_this_pass = []
+             
+             with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
+                future_to_symbol = {}
+                
+                # Chunker helper
+                def chunker(seq, size):
+                    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
 
-            total_batches = (len(universe) // WORKERS_PER_BATCH) + 1
-            batch_num = 0
+                for batch in chunker(pending_symbols, WORKERS_PER_BATCH):
+                    for symbol, token in batch:
+                        future = executor.submit(process_symbol, broker, db_pool, symbol, token, args.timeframe, table_suffix)
+                        future_to_symbol[future] = (symbol, token)
+                    time.sleep(BATCH_DELAY)
 
-            for batch in chunker(universe, WORKERS_PER_BATCH):
-                batch_num += 1
-                for symbol, token in batch:
-                    future = executor.submit(process_symbol, broker, db_pool, symbol, token, args.timeframe, table_suffix)
-                    future_to_symbol[future] = symbol
-                time.sleep(BATCH_DELAY)
+                print("⏳ Waiting for jobs...")
+                
+                for future in concurrent.futures.as_completed(future_to_symbol):
+                    symbol, token = future_to_symbol[future]
+                    try:
+                        result = future.result(timeout=JOB_TIMEOUT)
+                        status = result.get("status")
+                        if status == "SUCCESS":
+                            stats["completed"] += 1
+                        else:
+                            # status could be NO_DATA or EMPTY, treat as non-success if results are expected
+                            # But for now let's stick to explicitly counting failures in the except block
+                            pass
+                    except Exception as e:
+                        err_msg = str(e)
+                        
+                        # Only count as final error if it's the last attempt
+                        if attempt == MAX_RETRIES:
+                             stats["errors"] += 1
+                             category = "General Error"
+                             if "timed out" in err_msg: category = "Connection Timeout"
+                             elif "Access denied" in err_msg: category = "Rate Limit Exceeded"
+                             elif "Instrument Token" in err_msg: category = "Token Invalid"
+                             elif "Session Expired" in err_msg: category = "Session Expired"
+                             
+                             stats["error_counts"][category] = stats["error_counts"].get(category, 0) + 1
+                             print(f"❌ {symbol} Failed (Final): {e}")
+                        else:
+                             # Soft fail for now
+                             print(f"⚠️ {symbol} Failed (Will Retry): {e}")
 
-            print("⏳ Waiting for jobs...")
-            completed = 0
-            errors = 0
-            error_counts = {}
-            failed_jobs = []
+                        failed_in_this_pass.append((symbol, token))
 
-            for future in concurrent.futures.as_completed(future_to_symbol):
-                symbol = future_to_symbol[future]
-                try:
-                    result = future.result(timeout=JOB_TIMEOUT)
-                    status = result.get("status")
-                    if status == "SUCCESS":
-                        completed += 1
-                    elif status == "NO_DATA":
-                         # Optional: Track no data separately if needed
-                         pass
-                except Exception as e:
-                    errors += 1
-                    err_msg = str(e)
-                    
-                    # Categorize Error
-                    category = "General Error"
-                    if "timed out" in err_msg: category = "Connection Timeout"
-                    elif "Access denied" in err_msg: category = "Rate Limit Exceeded"
-                    elif "Instrument Token" in err_msg: category = "Token Invalid"
-                    elif "Session Expired" in err_msg: category = "Session Expired"
-                    
-                    error_counts[category] = error_counts.get(category, 0) + 1
-                    
-                    failed_jobs.append((symbol, err_msg))
-                    print(f"❌ {symbol} Failed: {e}")
+             # End of Batch
+             pending_symbols = failed_in_this_pass
+             
+             if pending_symbols and attempt < MAX_RETRIES:
+                 print(f"⚠️ {len(pending_symbols)} symbols failed. Waiting 5s before retry...")
+                 time.sleep(5)
 
         duration = time.time() - start_time
-        logger.log("info", "Job Complete", duration=duration, completed=completed, errors=errors)
-        print(f"✅ DONE. Time: {duration:.2f}s | Success: {completed} | Errors: {errors}")
+        logger.log("info", "Job Complete", duration=duration, completed=stats['completed'], errors=stats['errors'])
+        print(f"✅ DONE. Time: {duration:.2f}s | Success: {stats['completed']} | Errors: {stats['errors']}")
 
         # Notification logic
         msg_title = f"Data Collector Report ({args.timeframe})"
-        msg_body = (
-            f"✅ Success: {completed}\n"
-            f"❌ Failed: {errors}\n"
-            f"⏱️ Duration: {duration:.1f}s\n"
-        )
         
-        if errors > 0:
-            msg_body += "\n⚠️ Error Breakdown:\n"
-            for cat, count in error_counts.items():
-                msg_body += f"- {cat}: {count}\n"
-                
-            priority = "high"
-        else:
-            msg_body += "\n✨ All symbols processed successfully."
-            priority = "normal"
-            
-        notifier.send_notification(msg_title, msg_body, priority=priority)
+        # Details list for notifier
+        details = [
+            f"Success: {stats['completed']}",
+            f"Failed: {stats['errors']}",
+            f"Duration: {duration:.1f}s"
+        ]
+        
+        technicals = {
+            "Timeframe": args.timeframe,
+            "Total Processed": stats['completed'] + stats['errors']
+        }
+        
+        actionable = []
+        severity = "INFO"
+        priority = "default"
 
+        if stats['errors'] > 0:
+            severity = "ERROR"
+            priority = "high"
+            details.append("⚠️ Error Breakdown:")
+            for cat, count in stats['error_counts'].items():
+                details.append(f"• {cat}: {count}")
+            actionable.append("Check logs for specific symbol failures")
+        else:
+            details.append("✨ All symbols processed successfully.")
+            
+        notifier.send_notification(
+            subject=msg_title, 
+            details=details, 
+            technicals=technicals,
+            actionable=actionable,
+            severity=severity,
+            priority=priority
+        )
+
+        # EXIT STATUS: If there were errors, exit with 1 so the scheduler marks as FAILURE
+        if stats['errors'] > 0:
+            sys.exit(1)
+
+    except SystemExit:
+        # Re-raise SystemExit to allow sys.exit to work
+        raise
     except Exception as e:
         logger.log("error", "Critical Collector Failure", exc_info=True)
         print(f"🔥 CRITICAL FAIL: {e}")
-        notifier.send_notification("Data Collector Failed", str(e), priority="critical")
+        notifier.send_notification(
+            subject="Data Collector Failed", 
+            details=str(e),
+            severity="CRITICAL",
+            priority="critical"
+        )
+        sys.exit(1)
     finally:
-        if 'db_pool' in locals() and db_pool:
+        if db_pool:
             db_pool.closeall()
 
 if __name__ == "__main__":

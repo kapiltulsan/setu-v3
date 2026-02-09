@@ -84,6 +84,21 @@ class AngelOneClient(BaseBroker):
             
             data = self.smart_api.getCandleData(params)
             
+            # Angel returns None or error dict on failure
+            if not data:
+                raise Exception("Angel API returned None (Possible Network/Auth Issue)")
+                
+            if isinstance(data, dict):
+                 if data.get("status") is False:
+                      # API Error (e.g. AB1004)
+                      msg = data.get("message", "Unknown Angel Error")
+                      code = data.get("errorcode", "")
+                      raise Exception(f"Angel API Error {code}: {msg}")
+                 
+                 # Success but maybe empty data
+                 if "data" not in data or data["data"] is None:
+                      return []
+
             if data and "data" in data:
                 # Transform to standard format compatible with data_collector
                 # Angel Returns: [timestamp, open, high, low, close, volume]
@@ -109,39 +124,69 @@ class AngelOneClient(BaseBroker):
                 
         except Exception as e:
             logger.log("error", f"Angel History Fetch Failed for {symbol}", error=str(e))
-            return []
+            # Critical: Propagate the error so Data Collector knows to retry!
+            raise e
 
     def _get_angel_token(self, symbol: str) -> str:
         """
-        Maps a Trading Symbol (e.g. RELIANCE-EQ) to Angel Script Token.
-        Uses a static/cached master json from Angel.
+        Maps a Trading Symbol (e.g. RELIANCE-EQ or NIFTY 50) to Angel Script Token.
+        Uses a robust case-insensitive mapping with alias support.
         """
-        # This implementation fetches the master JSON on demand and caches it in memory.
-        # In a production system, this should likely be in a DB or Redis.
         if not hasattr(self, "_token_map"):
             self._token_map = self._load_angel_master()
             
-        # Clean symbol: Zerodha might send 'RELIANCE', but we assume NSE Equity for now
-        # Angel usually matches 'RELIANCE-EQ'
-        keys_to_try = [symbol, f"{symbol}-EQ"]
+        # 1. Normalize input
+        target = symbol.strip().lower()
         
-        for k in keys_to_try:
-            if k in self._token_map:
-                return self._token_map[k]
+        # 2. Direct lookup (NIFTY 50 -> nifty 50)
+        if target in self._token_map:
+            return self._token_map[target]
+            
+        # 3. Alias lookup (NIFTY BANK -> banknifty)
+        aliases = {
+            "nifty bank": "banknifty",
+            "nifty 50": "nifty",
+            "nifty financial services": "finnifty",
+            "nifty fin service": "finnifty"
+        }
+        if target in aliases:
+            alt_target = aliases[target]
+            if alt_target in self._token_map:
+                return self._token_map[alt_target]
+
+        # 4. Equity suffix fallback (RELIANCE -> reliance-eq)
+        if not target.endswith("-eq"):
+            equity_target = f"{target}-eq"
+            if equity_target in self._token_map:
+                return self._token_map[equity_target]
         
         return None
 
     def _load_angel_master(self):
+        """
+        Fetches and normalizes the Angel Master Scrip List.
+        Creates a map of lowercase(symbol) and lowercase(name) to token.
+        """
         import requests
         url = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
         try:
-            r = requests.get(url, timeout=10)
+            logger.log("info", "Fetching Angel Master Scrip List...")
+            r = requests.get(url, timeout=15)
             data = r.json()
             mapping = {}
-            for item in data:
-                # We only care about NSE Equity for now to keep it small
-                if item.get("exch_seg") == "NSE":
-                    mapping[item["symbol"]] = item["token"]
+            
+            # We process in order: NSE, BSE, NFO (to let NSE win on overlaps)
+            for seg in ["BSE", "NFO", "NSE"]:
+                for item in data:
+                    if item.get("exch_seg") == seg:
+                        sym = item.get("symbol", "").lower()
+                        name = item.get("name", "").lower()
+                        token = item.get("token")
+                        
+                        if sym: mapping[sym] = token
+                        if name: mapping[name] = token
+            
+            logger.log("info", f"Angel Master Loaded: {len(mapping)} mapped keys.")
             return mapping
         except Exception as e:
             logger.log("error", "Failed to fetch Angel Master", error=str(e))

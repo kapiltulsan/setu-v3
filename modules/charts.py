@@ -132,15 +132,25 @@ def search_symbols():
         
     try:
         with conn.cursor() as cur:
+            # Query Stocks
             if query:
-                sql = "SELECT trading_symbol FROM ref.symbol WHERE trading_symbol LIKE %s LIMIT 10"
-                cur.execute(sql, (f'%{query}%',))
+                sql_stocks = "SELECT trading_symbol FROM ref.symbol WHERE trading_symbol ILIKE %s LIMIT 10"
+                cur.execute(sql_stocks, (f'%{query}%',))
             else:
-                sql = "SELECT trading_symbol FROM ref.symbol LIMIT 10" # Default list
-                cur.execute(sql)
+                sql_stocks = "SELECT trading_symbol FROM ref.symbol LIMIT 10"
+                cur.execute(sql_stocks)
+            stocks = [{"value": row[0], "label": row[0], "type": "stock"} for row in cur.fetchall()]
+
+            # Query Indices
+            if query:
+                sql_indices = "SELECT index_name FROM ref.index_source WHERE index_name ILIKE %s AND is_active = TRUE LIMIT 5"
+                cur.execute(sql_indices, (f'%{query}%',))
+            else:
+                sql_indices = "SELECT index_name FROM ref.index_source WHERE is_active = TRUE LIMIT 5"
+                cur.execute(sql_indices)
+            indices = [{"value": row[0], "label": row[0], "type": "index"} for row in cur.fetchall()]
             
-            results = [row[0] for row in cur.fetchall()]
-            return jsonify(results)
+            return jsonify(indices + stocks)
     except Exception as e:
          logger.log("error", "Symbol Search Failed", error=str(e))
          return jsonify([])

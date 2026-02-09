@@ -13,9 +13,11 @@ const httpsOptions = {
 const httpProxy = require('http-proxy');
 
 const proxy = httpProxy.createProxyServer({
-    target: 'http://127.0.0.1:5000',
+    target: 'https://127.0.0.1:5000',
     secure: false, // Verify SSL Cert but ignore self-signed errors (or just ignore validation entirely)
-    changeOrigin: true
+    changeOrigin: true,
+    proxyTimeout: 300000, // 5 minutes
+    timeout: 300000
 });
 
 proxy.on('error', (err, req, res) => {

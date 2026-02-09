@@ -31,6 +31,7 @@ from modules.charts import charts_bp
 from modules.jobs import jobs_bp
 from modules.scanners import scanners_bp # NEW
 from modules.scheduler import scheduler_bp
+from modules.backtesting.api import backtesting_bp
 # Trigger Restart
 
 load_dotenv()
@@ -48,6 +49,7 @@ app.register_blueprint(jobs_bp)
 app.register_blueprint(scanners_bp) # NEW
 app.register_blueprint(scheduler_bp)
 app.register_blueprint(logs_bp)
+app.register_blueprint(backtesting_bp)
 from modules.portfolio import portfolio_bp
 app.register_blueprint(portfolio_bp)
 
@@ -98,6 +100,30 @@ def get_system_stats():
 def api_system_stats():
     return jsonify(get_system_stats())
 
+from flask import redirect, request
+
+@app.route('/backtest')
+def redirect_backtest():
+    # Redirect to Next.js port 3000
+    host = request.host.split(':')[0]
+    return redirect(f"https://{host}:3000/backtest")
+
+@app.route('/scanners')
+def redirect_scanners():
+    # Redirect to Next.js port 3000
+    host = request.host.split(':')[0]
+    return redirect(f"https://{host}:3000/scanners")
+
+@app.route('/scanners/<path:path>')
+def redirect_scanners_sub(path):
+    host = request.host.split(':')[0]
+    return redirect(f"https://{host}:3000/scanners/{path}")
+
+@app.route('/reporting')
+def redirect_reporting():
+    host = request.host.split(':')[0]
+    return redirect(f"https://{host}:3000/reporting")
+
 @app.route('/')
 def dashboard():
     host_ip = socket.gethostbyname(socket.gethostname())
@@ -118,5 +144,11 @@ def dashboard():
 if __name__ == '__main__':
     # The print verifies it's actually running
     print("Starting Setu V3 Backend on Port 5000...") 
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    
+    if os.path.exists("cert.pem") and os.path.exists("key.pem"):
+        print("🔐 HTTPS Enabled (using cert.pem/key.pem)")
+        app.run(host='0.0.0.0', port=5000, debug=True, ssl_context=('cert.pem', 'key.pem'))
+    else:
+        print("⚠️ HTTPS Disabled (certs not found)")
+        app.run(host='0.0.0.0', port=5000, debug=True)
 #

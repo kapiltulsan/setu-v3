@@ -14,13 +14,25 @@ DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASS = os.getenv("DB_PASS")
-
 def get_db_connection():
     try:
         return psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
     except Exception as e:
         print(f"DB Connection Failed: {e}", file=sys.stderr)
         return None
+
+def get_indices_list():
+    """Returns a simple list of active index names."""
+    conn = get_db_connection()
+    if not conn: return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT index_name FROM ref.index_source WHERE is_active = TRUE ORDER BY index_name")
+            return [row[0] for row in cur.fetchall()]
+    except:
+        return []
+    finally:
+        conn.close()
 
 # --- CRUD Endpoints ---
 
